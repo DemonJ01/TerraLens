@@ -1,0 +1,7 @@
+* text=auto
+*.py text eol=lf
+*.sh text eol=lf
+
+# Keep generated research maps from dominating GitHub's language statistics.
+docs/maps/*.html linguist-generated=true -whitespace
+docs/figures/* linguist-generated=true

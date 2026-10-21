@@ -1,0 +1,2 @@
+# Install TerraLens and its development tools from the dependency list in pyproject.toml.
+-e .[dev]

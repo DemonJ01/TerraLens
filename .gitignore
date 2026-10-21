@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+venv/
+.venv/
+env/
+.env/
+.env
+.env.*
+*.env
+# Allow documentation-only templates; never put real values in these.
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+credentials.json
+service-account*.json
+.aws/
+.ssh/
+*.egg-info/
+build/
+dist/
+
+# Data & outputs (never commit)
+data/**
+outputs/**
+.cache/**
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+coverage.xml
+coverage.json
+junit*.xml
+test-results/
+test-reports/
+playwright-report/
+blob-report/
+htmlcov/
+
+# Logs
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+tmp/
+temp/
+screenshots/
+**/screenshots/
+*screenshot*.png
+*screenshot*.jpg
+*screenshot*.jpeg
+codex-clipboard-*
+
+# Local caches (never commit)
+cache/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Streamlit
+.streamlit/*
+!.streamlit/config.toml

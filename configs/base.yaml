@@ -1,0 +1,24 @@
+project_name: terralens
+version: 0.1.0
+seed: 42
+
+data:
+  max_tracts_per_city: 300
+  images_per_tract: 3
+  osm_buffer_meters: 500
+  cache_enabled: true
+
+features:
+  vision_model: resnet50
+  device: mps
+  batch_size: 16
+
+training:
+  test_size: 0.15
+  val_size: 0.15
+  random_state: 42
+
+paths:
+  data_root: data/
+  output_root: outputs/
+  cache_root: .cache/
