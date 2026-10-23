@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -31,8 +33,70 @@ def ensure_dir(p: Path) -> None:
 
 
 def to_metric(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    # EPSG:3857 is fine for NYC-scale lengths; keeps dependencies simple.
-    return gdf.to_crs(epsg=3857)
+    return gdf.to_crs(gdf.estimate_utm_crs())
+
+
+def poi_type_from_tags(value) -> str | None:
+    """Read GDAL's OSM hstore tags without treating untagged nodes as POIs."""
+    if not isinstance(value, str):
+        return None
+    matches = dict(re.findall(r'"(amenity|shop|leisure|tourism)"=>"((?:[^"\\]|\\.)*)"', value))
+    for key in ("amenity", "shop", "leisure", "tourism"):
+        if matches.get(key) and matches[key] not in {"no", "false"}:
+            return key + ":" + json.loads('"' + matches[key] + '"')
+    return None
+
+
+def load_osm_gdal(pbf: Path, tracts: gpd.GeoDataFrame):
+    """Read PBF via the GDAL OSM driver already supplied with Pyogrio."""
+    import pyogrio
+
+    if "OSM" not in pyogrio.list_drivers():
+        raise SystemExit("Install osmium-tool or a Pyogrio build with the GDAL OSM driver.")
+    bbox = tuple(tracts.to_crs(4326).total_bounds)
+    print("Reading roads with GDAL...", flush=True)
+    roads = pyogrio.read_dataframe(
+        pbf, layer="lines", columns=["highway"], bbox=bbox, where="highway IS NOT NULL"
+    )
+    print("Reading tagged point locations with GDAL...", flush=True)
+    where = " OR ".join(
+        f"other_tags LIKE '%\"{key}\"=>%'" for key in ("amenity", "shop", "leisure", "tourism")
+    )
+    pois = pyogrio.read_dataframe(
+        pbf, layer="points", columns=["other_tags"], bbox=bbox, where=where
+    )
+    pois["poi_type"] = pois["other_tags"].map(poi_type_from_tags)
+    pois = pois.dropna(subset=["poi_type", "geometry"])[["poi_type", "geometry"]]
+    roads = roads.dropna(subset=["highway", "geometry"])
+    print(f"Loaded {len(roads):,} road segments and {len(pois):,} POI nodes.", flush=True)
+    return roads, pois
+
+
+def aggregate_features(tracts, roads, pois) -> pd.DataFrame:
+    """Count real POI nodes and clip measured road lengths to tract boundaries."""
+    metric_crs = tracts.estimate_utm_crs()
+    tr_m = tracts.to_crs(metric_crs)[["tract_id", "geometry"]].copy()
+    tr_m["tract_id"] = tr_m["tract_id"].astype(str)
+    roads_m = roads.to_crs(metric_crs)
+    pois_m = pois.to_crs(metric_crs)
+    poi_join = gpd.sjoin(pois_m[["poi_type", "geometry"]], tr_m, how="inner", predicate="within")
+    counts = poi_join.groupby("tract_id").size().rename("poi_count")
+    entropies = (
+        poi_join.groupby("tract_id")["poi_type"]
+        .agg(lambda values: entropy_from_counts(values.value_counts()))
+        .rename("poi_entropy")
+    )
+    print("Clipping road segments to tract boundaries...", flush=True)
+    clipped = gpd.overlay(roads_m[["geometry"]], tr_m, how="intersection", keep_geom_type=False)
+    clipped["road_length_m"] = clipped.geometry.length
+    lengths = clipped.groupby("tract_id")["road_length_m"].sum()
+    out = tr_m.set_index("tract_id").drop(columns="geometry")
+    out["tract_area_km2"] = tr_m.set_index("tract_id").geometry.area / 1e6
+    out = out.join([counts, entropies, lengths]).astype(float).fillna(0)
+    area = out["tract_area_km2"].where(out["tract_area_km2"] > 0)
+    out["poi_density_per_km2"] = out["poi_count"].div(area).fillna(0)
+    out["road_density_km_per_km2"] = out["road_length_m"].div(1000 * area).fillna(0)
+    return pd.DataFrame(out).reset_index()
 
 
 def main() -> int:
@@ -94,9 +158,12 @@ def main() -> int:
         return 0
 
     if shutil.which("osmium") is None:
-        raise SystemExit(
-            "osmium-tool is required to process PBF files. Install it before running this command."
-        )
+        tracts = gpd.read_file(tracts_path)[["tract_id", "geometry"]].dropna(subset=["geometry"])
+        roads, pois = load_osm_gdal(pbf, tracts)
+        out = aggregate_features(tracts, roads, pois)
+        out.to_parquet(out_path, index=False)
+        print(f"Wrote measured OSM features: {out_path} ({len(out):,} tracts)")
+        return 0
 
     # 1) Filter PBF locally (FAST) using osmium-tool
     if (not roads_pbf.exists()) or args.force:

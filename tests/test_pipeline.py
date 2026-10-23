@@ -112,6 +112,10 @@ def test_cache_cli_trains_on_fixture_and_replaces_sample_manifest(tmp_path):
     assert len(pred) == 3
     assert np.isfinite(pred[["y_true", "y_pred", "error"]].to_numpy()).all()
     assert np.allclose(pred["error"], pred["y_pred"] - pred["y_true"])
+    metadata = json.loads(next(out_dir.glob("*.metrics.json")).read_text())
+    assert metadata["evaluation"] == "random_holdout"
+    assert metadata["train_rows"] == 57 and metadata["test_rows"] == 3
+    assert metadata["test_fraction"] == 0.05
 
 
 def test_cross_city_summary_preserves_both_target_transforms(tmp_path):
@@ -194,3 +198,29 @@ def test_city_builder_accepts_targets_without_income_file_and_preserves_missing_
     assert pd.isna(result.loc["one", "median_rent"])
     assert result.loc["two", "poi_count"] == 0
     assert np.isfinite(result[["lat", "lon"]].to_numpy()).all()
+    source = json.loads(output.with_suffix(".source.json").read_text())
+    assert source["acs_year"] == 2021
+    assert source["acs_period"] == "2017–2021"
+
+
+def test_single_city_preparation_reuses_inputs_and_keeps_downloads_optional(tmp_path):
+    from scripts.prepare_city import preparation_steps
+
+    first = preparation_steps("nyc", 2021, "ridge", root=tmp_path)
+    assert len(first) == 6
+    assert first[0][0] == "fetch_census_tracts_multi.py"
+    assert first[1][0] == "download_acs_targets.py"
+    assert first[2][0] == "download_osm_extract.py"
+    assert first[-1][-1] == "all"
+    with pytest.raises(ValueError, match="Missing local inputs"):
+        preparation_steps("nyc", 2021, "ridge", skip_downloads=True, root=tmp_path)
+    for relative in (
+        "raw/census/nyc_tracts_2021.gpkg",
+        "raw/census/nyc_targets_2021.parquet",
+        "features/nyc_geo_features.parquet",
+    ):
+        path = tmp_path / "data" / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    reused = preparation_steps("nyc", 2021, "ridge", skip_downloads=True, root=tmp_path)
+    assert [step[0] for step in reused] == ["build_dataset_multi_city.py", "cache_predictions.py"]

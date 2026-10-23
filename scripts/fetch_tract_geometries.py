@@ -79,7 +79,7 @@ def main() -> int:
         drop=True
     )
 
-    # Save to GeoPackage (robust on macOS)
+    # Store the standardized tract IDs and boundaries in a GeoPackage.
     gdf.to_file(out_path, layer="tracts", driver="GPKG")
     print(f"✅ Saved {len(gdf)} tracts -> {out_path}")
 

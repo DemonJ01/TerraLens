@@ -6,7 +6,7 @@ Build tract-level datasets for multiple cities using:
 - OSM-derived tract features (.parquet)
 
 Outputs a single parquet per city with:
-- city, tract_id, lat, lon, image_paths (placeholder)
+- city, tract_id, lat, lon, image_paths (empty legacy field)
 - targets: median_income + any additional ACS targets (if available)
 - geo features from OSM aggregation
 
@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import geopandas as gpd
@@ -147,7 +148,7 @@ def main() -> int:
         "tract_id": gdf["tract_id"].astype(str),
         "lat": gdf["lat"].astype(float),
         "lon": gdf["lon"].astype(float),
-        "image_paths": ["[]"] * len(gdf),  # placeholder for later vision phase
+        "image_paths": ["[]"] * len(gdf),  # Retained for compatibility with older datasets.
     }
     df = pd.DataFrame(base)
 
@@ -166,6 +167,32 @@ def main() -> int:
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out_path, index=False)
+    osm_source_path = Path(f"data/raw/osm/{city}.osm.source.json")
+    osm_source = {}
+    if osm_source_path.is_file():
+        try:
+            osm_source = json.loads(osm_source_path.read_text())
+        except (OSError, ValueError):
+            pass
+    out_path.with_suffix(".source.json").write_text(
+        json.dumps(
+            {
+                "city": city,
+                "acs_year": year,
+                "acs_period": f"{year - 4}–{year}",
+                "acs_source": str(targets_path or income_path),
+                "osm_source": osm_source,
+                "rows": len(df),
+                "caution": (
+                    "ACS labels and OSM snapshot dates differ; "
+                    "retrospective analysis, not a forecast."
+                ),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     print(f"✅ Wrote dataset: {out_path} (rows={len(df)}, cols={len(df.columns)})")
     print(

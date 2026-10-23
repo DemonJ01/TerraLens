@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -8,16 +9,12 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from terralens.data.dashboard import (
-    PROJECT_ROOT,
     discover_predictions,
     load_predictions,
     prediction_metrics,
 )
 from terralens.utils.maps import build_prediction_map
 
-# ----------------------------
-# Page setup
-# ----------------------------
 st.set_page_config(
     page_title="TerraLens",
     page_icon="🌆",
@@ -25,7 +22,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Minimal, readable CSS (works with your dark theme config.toml)
 st.markdown(
     """
 <style>
@@ -66,20 +62,10 @@ hr { margin: 1.2rem 0; }
   .block-container { padding-left: 1rem; padding-right: 1rem; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-.h2tight { margin: .25rem 0 .35rem 0; }
-.note {
-  padding: .65rem .8rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.02);
-}
 </style>
 """,
     unsafe_allow_html=True,
 )
-
-PRED_DIR = PROJECT_ROOT / "outputs/preds"
-MANIFEST_PATH = PRED_DIR / "manifest.csv"
 
 TARGET_LABELS = {
     "median_income": "Median household income (USD)",
@@ -95,11 +81,11 @@ CITY_LABELS = {
 }
 
 MODEL_LABELS = {
-    "xgboost": "XGBoost (GBDT)",
-    "extra_trees": "ExtraTrees (Ensemble)",
-    "hist_gb": "HistGradientBoosting",
+    "xgboost": "XGBoost",
+    "extra_trees": "Extra Trees",
+    "hist_gb": "Histogram Gradient Boosting",
     "ridge": "Ridge Regression",
-    "mlp": "MLP (Neural Net)",
+    "mlp": "Neural Network (MLP)",
 }
 
 FEATURESET_LABELS = {
@@ -138,6 +124,12 @@ def load_preds(path: str) -> pd.DataFrame:
     return _load_preds_cached(path, (stat.st_mtime_ns, stat.st_size))
 
 
+@st.cache_data(show_spinner=False, max_entries=32)
+def render_map_html(data: pd.DataFrame, value_col: str, mode: str, clip: bool) -> str:
+    """Reuse the iframe document until its data or display settings change."""
+    return build_prediction_map(data, value_col, mode, clip=clip).get_root().render()
+
+
 def compute_metrics(df: pd.DataFrame) -> dict:
     return prediction_metrics(df)
 
@@ -162,15 +154,17 @@ def download_csv_button(df: pd.DataFrame, filename: str, label: str = "⬇️ Do
 def local_explain(city: str, target: str, feature_set: str, model: str, df: pd.DataFrame) -> str:
     """Return a short, plain-language explanation for the selected result."""
     met = compute_metrics(df)
+    description = (
+        "This view contains synthetic locations and values to try the controls, "
+        "not predictions from a trained model."
+        if city.endswith("_sample")
+        else f"{fmt_model(model)} estimates {fmt_target(target).lower()} for "
+        f"census tracts in {fmt_city(city)}, using {fmt_featureset(feature_set)} data."
+    )
     return "\n".join(
         [
-            "### TerraLens, simply explained",
-            "TerraLens uses open city data to estimate a neighborhood value for each census tract.",
-            "",
-            "### This view",
-            f"- **City:** {fmt_city(city)}",
-            f"- **Measure:** {fmt_target(target)}",
-            f"- **Model:** {fmt_model(model)} using {fmt_featureset(feature_set)} data",
+            "### About this result",
+            description,
             "",
             "### What the map means",
             "- **Prediction:** TerraLens' estimate.",
@@ -178,7 +172,7 @@ def local_explain(city: str, target: str, feature_set: str, model: str, df: pd.D
             "- **Error:** prediction minus the real value. "
             "Positive means the estimate was too high.",
             "",
-            "### Quick way to judge the result",
+            "### Accuracy",
             (
                 f"- **R²: {met['r2']:.3f}** — higher is better."
                 if np.isfinite(met["r2"])
@@ -187,15 +181,12 @@ def local_explain(city: str, target: str, feature_set: str, model: str, df: pd.D
             f"- **MAE: {format_value(met['mae'])}** — the average size of an error.",
             f"- **Tracts checked: {met['n']:,}**.",
             "",
-            "Start with the Leaderboard, then use the Error map "
-            "to see where estimates are less reliable.",
+            "These scores describe the loaded predictions. Sample scores do not measure "
+            "real-world accuracy; other scores depend on how the data was split for testing.",
         ]
     )
 
 
-# ----------------------------
-# Header
-# ----------------------------
 st.markdown(
     """
 <div class="card">
@@ -208,12 +199,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ----------------------------
-# Load manifest
-# ----------------------------
 m = load_manifest()
 if m.empty:
-    st.error("No prediction data is available yet. Run: python scripts/cache_predictions.py ...")
+    st.error("No prediction data is available. See the README for data preparation steps.")
     st.stop()
 
 if set(m["city"].dropna()) == {"nyc_sample"}:
@@ -222,9 +210,6 @@ if set(m["city"].dropna()) == {"nyc_sample"}:
         "Real project results appear when prediction data is available."
     )
 
-# ----------------------------
-# Sidebar controls
-# ----------------------------
 with st.sidebar:
     st.header("Selections")
     st.caption("Options reflect the prediction data available on this computer.")
@@ -251,22 +236,32 @@ with st.sidebar:
     layer = st.radio("Color by", ["Prediction", "Error", "Ground truth"], index=0)
     clip_outliers = st.toggle("Clip outliers (2–98%)", value=True)
 
-# ----------------------------
-# Load selected preds
-# ----------------------------
 sel = m[
     (m.city == city) & (m.feature_set == feature_set) & (m.target == target) & (m.model == model)
 ]
 if sel.empty:
-    st.error("No row found for selection. Check outputs/preds/manifest.csv")
+    st.error("This result is no longer available. Reload results to refresh the choices.")
     st.stop()
 
 path = str(sel.iloc[0]["path"])
 df = load_preds(path)
+details_path = Path(path).with_suffix(".metrics.json")
+if details_path.is_file():
+    try:
+        details = json.loads(details_path.read_text())
+    except (OSError, ValueError):
+        details = {}
+    if isinstance(details, dict) and details.get("evaluation") == "random_holdout":
+        st.caption(
+            "Map and accuracy scores use held-out tracts, not the rows used to fit the model."
+        )
+        source = details.get("data_source", {})
+        if isinstance(source, dict) and source.get("acs_period"):
+            st.caption(
+                f"Observed labels: ACS {source['acs_period']}. OSM and ACS dates differ; "
+                "these are retrospective estimates, not forecasts."
+            )
 
-# ----------------------------
-# Selection summary row
-# ----------------------------
 met = compute_metrics(df)
 st.markdown(
     f"""
@@ -306,9 +301,6 @@ download_csv_button(
     df, f"{city}_{model}_{feature_set}_{target}.csv", label="⬇️ Download current view (CSV)"
 )
 
-# ----------------------------
-# Tabs
-# ----------------------------
 tab_map, tab_diag, tab_lead, tab_compare, tab_explain = st.tabs(
     ["Map", "Quick check", "Leaderboard", "Compare", "Explain"]
 )
@@ -333,10 +325,12 @@ with tab_map:
                 "This layer has no values yet. Choose Prediction to view the available estimates."
             )
         else:
-            fmap = build_prediction_map(dmap, value_col, map_mode, clip=clip_outliers)
-            # Each view gets an isolated map document and an explicit frame size.
-            # Reusing a component's Leaflet container across tabs caused blank maps.
-            components.html(fmap.get_root().render(), height=480, scrolling=False)
+            components.html(
+                render_map_html(dmap, value_col, map_mode, clip_outliers),
+                height=480,
+                scrolling=False,
+            )
+            st.caption("Drag to move, scroll or use +/− to zoom. Reset view shows all areas.")
             if map_mode == "Heatmap":
                 st.caption(
                     "Brighter areas show larger errors."
@@ -375,7 +369,7 @@ with tab_diag:
         st.caption("Use the Error layer on the map if you want to see where the larger misses are.")
 
 with tab_lead:
-    st.markdown("### Best models for this city/feature/target")
+    st.markdown("### Model scores")
     sub = m[(m.city == city) & (m.feature_set == feature_set) & (m.target == target)].copy()
 
     rows = []
@@ -401,7 +395,7 @@ with tab_lead:
 
     lb = pd.DataFrame(rows)
     if lb.empty:
-        st.info("Leaderboard unavailable. Ensure cached prediction files exist.")
+        st.info("Model scores need predictions with observed values to compare against.")
     else:
         lb = lb.sort_values(["R²", "MAE"], ascending=[False, True])
         st.dataframe(lb, width="stretch")
@@ -415,11 +409,15 @@ with tab_compare:
     st.markdown("### Compare models")
     st.caption("Compare the available models for the selected city and measure.")
     if lb.empty:
-        st.info("There are not enough cached predictions to compare models yet.")
+        st.info("No model scores are available for this selection yet.")
     else:
         comparison = lb.sort_values(["R²", "MAE"], ascending=[False, True]).set_index("Model")
-        st.bar_chart(comparison["R²"], width="stretch")
-        st.caption("Higher R² means the model is closer to the values in the data.")
+        r2 = comparison["R²"].dropna()
+        if r2.empty:
+            st.info("R² requires multiple different observed values. Compare MAE and RMSE below.")
+        else:
+            st.bar_chart(r2, width="stretch")
+            st.caption("Higher R² means a closer fit to the observed values.")
         st.dataframe(comparison, width="stretch")
 
 with tab_explain:
@@ -439,15 +437,12 @@ with tab_explain:
         )
     with st.expander("Which model should I trust?"):
         st.write(
-            "Start with the model highest on the Leaderboard. "
-            "Higher R² and lower MAE are generally better."
+            "Compare models tested on the same areas and data split. "
+            "Higher R² and lower MAE are generally better, but sample scores "
+            "cannot tell you which model will work best on real data."
         )
     with st.expander("Why do I only see dots and not polygons?"):
         st.write(
             "TerraLens uses one point at the center of each census tract "
             "to keep the map fast and easy to read."
         )
-
-st.caption(
-    "If options look wrong: re-generate outputs/preds/manifest.csv via scripts/cache_predictions.py"
-)

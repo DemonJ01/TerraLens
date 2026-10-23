@@ -10,41 +10,84 @@ from branca.element import MacroElement, Template
 from folium.plugins import HeatMap, MarkerCluster
 
 
+def _popup_value(value) -> str:
+    number = pd.to_numeric(value, errors="coerce")
+    return f"{number:,.2f}" if np.isfinite(number) else "Not available"
+
+
 class _MapSizing(MacroElement):
-    """Recalculate Leaflet dimensions after a hidden tab becomes visible."""
+    """Keep hidden-tab maps sized correctly and offer a way back to the data."""
 
     _template = Template("""
         {% macro script(this, kwargs) %}
         (function () {
             const map = {{ this._parent.get_name() }};
             const container = map.getContainer();
+            const heatLayer = {{ this.heat_layer.get_name() if this.heat_layer else 'null' }};
+            const bounds = {{ this.bounds | tojson }};
+            const initialCenter = map.getCenter();
+            const initialZoom = map.getZoom();
             let fitted = false;
+            function resetView() {
+                map.invalidateSize({pan: false});
+                if (bounds !== null) {
+                    map.fitBounds(bounds, {padding: [24, 24], maxZoom: 14});
+                } else {
+                    map.setView(initialCenter, initialZoom);
+                }
+            }
             function resizeMap() {
                 const size = container.getBoundingClientRect();
                 if (size.width > 0 && size.height > 0) {
-                    map.invalidateSize({pan: false});
-                    if (!fitted && {{ this.bounds | tojson }} !== null) {
-                        map.fitBounds({{ this.bounds | tojson }}, {
-                            padding: [24, 24], maxZoom: 14
-                        });
+                    // Preserve the geographic center as the available width changes.
+                    map.invalidateSize({animate: false});
+                    if (!fitted) {
+                        resetView();
                         fitted = true;
                     }
+                    if (heatLayer !== null && !map.hasLayer(heatLayer)) {
+                        heatLayer.addTo(map);
+                    }
+                } else if (heatLayer !== null && map.hasLayer(heatLayer)) {
+                    map.removeLayer(heatLayer);
                 }
             }
+            const ResetView = L.Control.extend({
+                options: {position: 'topright'},
+                onAdd: function () {
+                    const control = L.DomUtil.create('div', 'leaflet-bar');
+                    const button = L.DomUtil.create('button', '', control);
+                    button.type = 'button';
+                    button.textContent = 'Reset view';
+                    button.title = 'Show all mapped areas';
+                    button.style.cssText = 'background:white;color:#222;border:0;' +
+                        'padding:6px 10px;cursor:pointer;font:14px/20px sans-serif';
+                    L.DomEvent.disableClickPropagation(control);
+                    L.DomEvent.disableScrollPropagation(control);
+                    L.DomEvent.on(button, 'click', function (event) {
+                        L.DomEvent.stop(event);
+                        resetView();
+                    });
+                    return control;
+                }
+            });
+            new ResetView().addTo(map);
             if (typeof ResizeObserver !== 'undefined') {
                 new ResizeObserver(resizeMap).observe(container);
             }
             window.addEventListener('resize', resizeMap);
+            window.addEventListener('pageshow', resizeMap);
             document.addEventListener('visibilitychange', resizeMap);
             requestAnimationFrame(resizeMap);
         })();
         {% endmacro %}
         """)
 
-    def __init__(self, bounds):
+    def __init__(self, bounds, heat_layer=None):
         super().__init__()
         self._name = "TerraLensMapSizing"
         self.bounds = bounds
+        self.heat_layer = heat_layer
 
 
 def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool = True):
@@ -61,7 +104,9 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
         zoom_start=11,
         tiles="OpenStreetMap",
         control_scale=True,
-        scroll_wheel_zoom=False,
+        scroll_wheel_zoom=True,
+        # The visibility-aware observer below handles resizing, including hidden iframes.
+        track_resize=False,
     )
     values = d[value_col]
     low, high = values.quantile([0.02, 0.98]) if clip else (values.min(), values.max())
@@ -75,6 +120,7 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
             low, high = low - 1, high + 1
     color_scale = LinearColormap(colors, vmin=low, vmax=high)
 
+    heat_layer = None
     if mode == "Heatmap":
         # Error heatmaps show size of misses; signed weights would hide negatives.
         if value_col == "error":
@@ -84,7 +130,7 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
         else:
             weights = values.clip(lower=low, upper=high) - low
         denominator = float(weights.max()) or 1.0
-        HeatMap(
+        heat_layer = HeatMap(
             [
                 [float(row.lat), float(row.lon), float(weight / denominator)]
                 for row, weight in zip(d.itertuples(), weights)
@@ -93,15 +139,17 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
             radius=18,
             blur=16,
             max_zoom=14,
+            # Leaflet.heat cannot draw a zero-width canvas in an inactive tab.
+            show=False,
         ).add_to(map_view)
     else:
         markers = MarkerCluster().add_to(map_view) if mode == "Cluster" else map_view
         for _, row in d.iterrows():
             popup = (
                 f"<b>Area:</b> {escape(str(row.get('tract_id', '—')))}<br>"
-                f"<b>Data value:</b> {row.get('y_true', np.nan):,.2f}<br>"
-                f"<b>Estimate:</b> {row.get('y_pred', np.nan):,.2f}<br>"
-                f"<b>Error:</b> {row.get('error', np.nan):,.2f}"
+                f"<b>Data value:</b> {_popup_value(row.get('y_true', np.nan))}<br>"
+                f"<b>Estimate:</b> {_popup_value(row.get('y_pred', np.nan))}<br>"
+                f"<b>Error:</b> {_popup_value(row.get('error', np.nan))}"
             )
             folium.CircleMarker(
                 [float(row["lat"]), float(row["lon"])],
@@ -119,5 +167,5 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
             [float(d.lat.min()), float(d.lon.min())],
             [float(d.lat.max()), float(d.lon.max())],
         ]
-    _MapSizing(bounds).add_to(map_view)
+    _MapSizing(bounds, heat_layer).add_to(map_view)
     return map_view

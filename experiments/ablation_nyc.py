@@ -59,7 +59,7 @@ def main():
     df_311 = pd.read_parquet(enriched_path) if enriched_path.exists() else None
 
     configs = [
-        ("osm_only", ["poi_", "road_"]),  # your NYC OSM features are poi_* and road_*
+        ("osm_only", ["poi_", "road_"]),
         ("osm_311", ["poi_", "road_", "complaint_", "complaints_"]),
     ]
 
@@ -138,8 +138,7 @@ def main():
                     }
                 )
 
-                # fairness report only for the best-ish configuration later,
-                # but we’ll save it for every run for now (still small)
+                # Save error metrics by income quartile for each configuration.
                 tag = (
                     f"fairness_nyc_{feature_set}_{model_name}_{'log' if log_target else 'raw'}.json"
                 )

@@ -61,7 +61,7 @@ def train_xgboost(X_train, y_train):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train income prediction model (v1.0)")
+    parser = argparse.ArgumentParser(description="Train a TerraLens income prediction model")
     parser.add_argument("--data", required=True, help="Parquet dataset path")
     parser.add_argument("--model", choices=["ridge", "xgboost"], default="ridge")
     parser.add_argument("--geo-only", action="store_true", help="Use geo features only")

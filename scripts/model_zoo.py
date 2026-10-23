@@ -61,7 +61,7 @@ def get_model(name: str, seed: int = 42):
     if name == "mlp":
         from sklearn.neural_network import MLPRegressor
 
-        # Strong, stable MLP baseline for tabular features
+        # Feed-forward network for numeric tract features.
         return MLPRegressor(
             hidden_layer_sizes=(256, 128, 64),
             activation="relu",

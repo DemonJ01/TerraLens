@@ -15,7 +15,7 @@ make run
 
 Then open [TerraLens](http://localhost:8501). If `.venv` already exists, skip the first command. On Windows, activate it with `.venv\Scripts\activate` and launch with `python -m streamlit run app.py`.
 
-The dashboard works immediately with clearly labeled synthetic sample data when real predictions are absent. Sample values demonstrate the controls; their accuracy scores are not research results. Available cities, measures, feature sets, and models follow the prediction files that are present. The map needs an internet connection to load OpenStreetMap tiles.
+When real predictions are absent, the dashboard shows clearly labeled synthetic sample data. Sample values demonstrate the controls; their accuracy scores are not research results. Available cities, measures, feature sets, and models follow the prediction files that are present. The map needs an internet connection to load OpenStreetMap tiles.
 
 ## Use your own results
 
@@ -33,7 +33,17 @@ For a prepared dataset, train models and cache their predictions with:
 
 This reads `data/processed/nyc_dataset.parquet` and writes predictions plus `outputs/preds/manifest.csv`. Use `chicago` or `san_francisco` for another prepared city. XGBoost is also supported with `--models xgboost`; on macOS it may require the system OpenMP runtime.
 
-Source data and model outputs are excluded from this project copy. Run `make data-check` to inspect local data availability. The full real-data workflow requires the external `osmium` command (`osmium-tool`) and downloads large state OSM extracts, Census tract geometries, and ACS labels:
+Large source datasets and generated predictions are kept locally and excluded from Git. To prepare real NYC results on a fresh checkout, run:
+
+```bash
+.venv/bin/python scripts/prepare_city.py --city nyc --year 2021
+```
+
+This downloads official Census tract boundaries and ACS bulk data, plus a smaller NYC OpenStreetMap extract from BBBike. It calculates measured road lengths and POI counts, then trains three models for all six measures. Downloads are roughly 320 MB for NYC and are reused on subsequent runs. No Census API key is needed for the bulk-data route. To use the Census API instead, set `CENSUS_API_KEY` in your local environment; keys are never written to result metadata.
+
+OSM processing uses `osmium-tool` if installed, otherwise Pyogrio's bundled GDAL OSM driver. The map displays a random 20% held-out sample, not training predictions. ACS 2021 covers 2017–2021; the OSM extract is current at download time, so the sources are not time-aligned and scores are retrospective, not forecasts. Some tracts lack rent or home-value observations and are omitted for those measures.
+
+Run `make data-check` to inspect local availability. The optional full three-city workflow downloads larger state OSM extracts for the other cities:
 
 ```bash
 bash scripts/run_everything.sh 2021
@@ -41,7 +51,7 @@ bash scripts/run_everything.sh 2021
 
 To reuse existing raw data and features, run `bash scripts/run_everything.sh 2021 --skip-downloads`. Use `bash scripts/run_everything.sh --help` to see the prerequisites. This workflow prepares three cities, trains models, caches predictions, and generates experiment summaries, figures, and maps. NYC 311 comparisons require separately prepared complaint features.
 
-The dashboard reads saved predictions and does not train models. On a fresh checkout it creates its sample files locally. Reopen the dashboard after generating or changing real predictions.
+The dashboard reads saved predictions and does not train models. On a fresh checkout it creates its sample files locally. Choose **Reload results** after generating real predictions; real results replace sample choices automatically. NYC 311 data is optional and is not required for OSM-only results.
 
 ## Check the project
 

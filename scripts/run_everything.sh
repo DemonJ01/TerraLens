@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: bash scripts/run_everything.sh [YEAR] [--skip-downloads]"
   echo "Build real city datasets, train models, and cache dashboard predictions."
-  echo "Downloads Census data and large OSM extracts; osmium-tool is required for OSM processing."
+  echo "Downloads Census data and OSM extracts; uses osmium-tool or GDAL's OSM driver."
   echo "--skip-downloads uses existing raw data/features instead."
   exit 0
 fi
@@ -36,8 +36,10 @@ done
 
 for city in nyc chicago san_francisco; do
   if [[ ! -f "data/features/${city}_geo_features.parquet" ]] && ! command -v osmium >/dev/null; then
-    echo "Install osmium-tool or provide data/features/${city}_geo_features.parquet before running the pipeline." >&2
-    exit 1
+    if ! "$TERRALENS_PYTHON" -c 'import pyogrio; assert "OSM" in pyogrio.list_drivers()'; then
+      echo "Install osmium-tool or Pyogrio with GDAL OSM support before running the pipeline." >&2
+      exit 1
+    fi
   fi
 done
 

@@ -108,8 +108,7 @@ def make_strat_bins(y: pd.Series, bins: int = 10) -> pd.Series | None:
 
 def transform_y(y: pd.Series, target: str) -> tuple[pd.Series, dict]:
     """
-    Returns transformed y and a metadata dict describing the transform,
-    so we can invert predictions correctly.
+    Return transformed targets and the metadata needed to invert predictions.
     """
     yt = pd.to_numeric(y, errors="coerce").copy()
 
@@ -118,7 +117,7 @@ def transform_y(y: pd.Series, target: str) -> tuple[pd.Series, dict]:
         return yt, {"type": "rate_clip_0_1"}
 
     if target in MONEY_TARGETS:
-        # log1p is robust and standard for skewed money variables
+        # Reduce the skew in monetary targets before fitting the model.
         yt = yt.clip(lower=0.0)
         return np.log1p(yt), {"type": "log1p"}
 
@@ -203,6 +202,13 @@ def main() -> int:
             continue
 
         df = load_dataset(args.city, feature_set, args.data_dir)
+        source_file = args.data_dir / f"{args.city}_dataset.source.json"
+        source = {}
+        if source_file.is_file():
+            try:
+                source = json.loads(source_file.read_text())
+            except (OSError, ValueError):
+                pass
         feat_cols = select_features(df, feature_set)
         if not feat_cols:
             raise SystemExit("❌ No numeric feature columns found")
@@ -291,9 +297,18 @@ def main() -> int:
                 }
                 manifest_rows.append(row)
 
+                details = {
+                    **row,
+                    "evaluation": "random_holdout",
+                    "test_fraction": args.test_size,
+                    "train_rows": len(X_tr),
+                    "test_rows": len(X_te),
+                    "seed": args.seed,
+                    "data_source": source,
+                }
                 (
                     out_dir / f"{args.city}__{model_name}__{feature_set}__{target}.metrics.json"
-                ).write_text(json.dumps(row, indent=2), encoding="utf-8")
+                ).write_text(json.dumps(details, indent=2), encoding="utf-8")
 
                 print(
                     f"✅ cached: {fname} | "

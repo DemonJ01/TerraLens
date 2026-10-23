@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Make Phase-1 visuals for README.
+Make NYC income prediction figures.
 
 Outputs into: outputs/figures/
 - nyc_scatter.png
@@ -137,7 +137,7 @@ def main() -> int:
             plt.savefig(out3, dpi=180, bbox_inches="tight")
             plt.close()
         else:
-            # write placeholder text file
+            # Record why feature importance is unavailable for this model.
             (FIG_DIR / "nyc_feature_importance_note.txt").write_text(
                 "Feature importance not available for fallback model.\n", encoding="utf-8"
             )

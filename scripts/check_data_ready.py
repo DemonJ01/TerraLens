@@ -30,7 +30,8 @@ def main() -> int:
             if v == DataStatus.AVAILABLE
             else ("PARTIAL" if v == DataStatus.PARTIAL else "MISSING")
         )
-        print(f"{icon} {k:<10} : {v.value}")
+        label = "311 data (optional)" if k == "safety" else k
+        print(f"{icon} {label:<20} : {v.value}")
     print("=" * 50)
 
     geo_ready = checker.is_ready_geo_only(args.city)

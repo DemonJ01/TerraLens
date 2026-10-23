@@ -92,7 +92,7 @@ def load_city_df(city: str, data_dir: Path) -> pd.DataFrame:
 
 def infer_feature_cols(df: pd.DataFrame) -> List[str]:
     """
-    Infer feature columns robustly.
+    Select numeric OSM features, excluding labels and metadata.
 
     Strategy:
       - exclude known metadata columns
@@ -126,10 +126,9 @@ def infer_feature_cols(df: pd.DataFrame) -> List[str]:
         if pd.api.types.is_numeric_dtype(df[c]):
             cols.append(c)
 
-    # Defensive: if user has only the 3 geo features, this will still work.
     if not cols:
         raise ValueError(
-            "No numeric feature columns found after exclusions. " "Check your dataset columns."
+            "No numeric OSM feature columns remain after excluding labels and metadata."
         )
 
     return cols
@@ -211,7 +210,7 @@ def train_predict(
             model.fit(X_train, y_train)
             return model.predict(X_test)
 
-        # Fallback: still give a strong tree baseline without adding deps
+        # Use scikit-learn's tree model when XGBoost is unavailable.
         model = HistGradientBoostingRegressor(max_depth=6, learning_rate=0.05, random_state=seed)
         model.fit(X_train, y_train)
         return model.predict(X_test)

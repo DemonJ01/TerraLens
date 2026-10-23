@@ -15,6 +15,7 @@ def _ensure_parent(path: Path) -> None:
 
 
 def build_geo_only_dataset(city: str, limit: int, seed: int) -> pd.DataFrame:
+    """Build sample data with synthetic locations/features and optional Census labels."""
     rng = random.Random(seed)
 
     census_path = Path("data/raw/census") / f"{city}_income_2021.csv"
@@ -33,13 +34,13 @@ def build_geo_only_dataset(city: str, limit: int, seed: int) -> pd.DataFrame:
                 "city": city,
                 "tract_id": census["tract_id"].astype(str),
                 "median_income": census["median_income"].astype(float),
-                # Placeholder geo features (we replace with OSM features later)
+                # Synthetic locations and features for the training smoke check.
                 "lat": np.random.default_rng(seed).uniform(40.63, 40.85, size=n),
                 "lon": np.random.default_rng(seed + 1).uniform(-74.05, -73.75, size=n),
                 "road_density": np.random.default_rng(seed + 2).normal(0.0, 1.0, size=n),
                 "poi_density": np.random.default_rng(seed + 3).normal(0.0, 1.0, size=n),
                 "landuse_entropy": np.random.default_rng(seed + 4).uniform(0.0, 1.0, size=n),
-                # Store image paths as JSON list (empty for now)
+                # Retain the legacy image_paths schema for dataset compatibility.
                 "image_paths": [json.dumps([])] * n,
             }
         )
@@ -66,12 +67,14 @@ def build_geo_only_dataset(city: str, limit: int, seed: int) -> pd.DataFrame:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build a minimal tract-level dataset (geo-only backbone)"
+        description="Build a TerraLens sample dataset with synthetic locations and features"
     )
     parser.add_argument("--city", required=True, help="City code (nyc, chicago, san_francisco)")
     parser.add_argument("--limit", type=int, default=300, help="Max tracts")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--geo-only", action="store_true", help="Geo-only mode (default v1.0)")
+    parser.add_argument(
+        "--geo-only", action="store_true", help="Compatibility flag; all features are geographic"
+    )
     parser.add_argument("--output", required=True, help="Output parquet path")
     args = parser.parse_args()
 
@@ -79,7 +82,7 @@ def main() -> None:
     _ensure_parent(out)
 
     df = build_geo_only_dataset(city=args.city, limit=args.limit, seed=args.seed)
-    # If computed geo features exist, merge them (replaces placeholder columns)
+    # Replace the synthetic feature columns when measured features exist.
     feat_path = Path("data/features") / f"{args.city}_geo_features.parquet"
     if feat_path.exists():
         try:
@@ -96,7 +99,7 @@ def main() -> None:
         except Exception as e:
             print(f"⚠️  Failed to merge geo features ({feat_path}): {e}")
 
-    # Optional: NYC 311 features (Phase E)
+    # Merge NYC 311 features when available.
     nyc311_path = Path("data/features") / f"{args.city}_311_features.parquet"
     if nyc311_path.exists():
         f311 = pd.read_parquet(nyc311_path)
@@ -113,7 +116,8 @@ def main() -> None:
 
     df.to_parquet(out, index=False)
 
-    print(f"✅ Wrote dataset: {out} ({len(df)} rows, {len(df.columns)} cols)")
+    print(f"✅ Wrote sample dataset: {out} ({len(df)} rows, {len(df.columns)} cols)")
+    print("Locations are synthetic. Use build_dataset_multi_city.py for real tract locations.")
 
 
 if __name__ == "__main__":
