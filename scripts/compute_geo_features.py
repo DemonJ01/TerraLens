@@ -31,7 +31,7 @@ def main() -> int:
     )
     parser.add_argument("--city", required=True)
     parser.add_argument(
-        "--dataset", required=True, help="Input parquet produced by build_dataset.py"
+        "--dataset", required=True, help="Input parquet with tract_id, lat, and lon columns"
     )
     parser.add_argument(
         "--osm_dir", default="data/raw/osm", help="Directory with *_pois.gpkg and *_roads.gpkg"

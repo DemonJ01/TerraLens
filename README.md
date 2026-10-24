@@ -53,16 +53,6 @@ To reuse existing raw data and features, run `bash scripts/run_everything.sh 202
 
 The dashboard reads saved predictions and does not train models. On a fresh checkout it creates its sample files locally. Choose **Reload results** after generating real predictions; real results replace sample choices automatically. NYC 311 data is optional and is not required for OSM-only results.
 
-## Check the project
-
-```bash
-make test        # Automated regression checks
-make smoke       # Small synthetic dataset and Ridge training; no downloads
-make data-check  # Availability of real NYC data; reports missing inputs
-```
-
-The synthetic training check writes to `outputs/smoke/`. Missing real data is reported separately from dashboard or training-code failures. `make` uses `.venv` automatically, with `venv` and `python3` as fallbacks.
-
 ## Project layout
 
 ```text
@@ -71,8 +61,7 @@ terralens/             Shared evaluation and utilities
 scripts/               Data preparation, prediction caching, and visualizations
 experiments/           Training and experiment runners
 configs/               City and training settings
-tests/                 Automated checks
-docs/                  Saved maps and figures
+docs/                  Local map and figure exports (generated)
 outputs/preds/         Local prediction cache (generated)
 ```
 

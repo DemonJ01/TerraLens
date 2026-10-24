@@ -40,6 +40,9 @@ outputs/**
 .DS_Store
 
 # Testing
+/tests/
+/scripts/build_dataset.py
+/.local/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -52,6 +55,10 @@ test-reports/
 playwright-report/
 blob-report/
 htmlcov/
+
+# Generated map and figure exports stay local
+/docs/maps/
+/docs/figures/
 
 # Logs
 *.log
