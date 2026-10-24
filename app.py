@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +14,9 @@ from terralens.data.dashboard import (
     load_predictions,
     prediction_metrics,
 )
-from terralens.utils.maps import build_prediction_map
+from terralens.utils import maps as map_utils
+
+MAP_RENDERER_VERSION = sha256(Path(map_utils.__file__).read_bytes()).hexdigest()
 
 st.set_page_config(
     page_title="TerraLens",
@@ -125,9 +128,17 @@ def load_preds(path: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False, max_entries=32)
-def render_map_html(data: pd.DataFrame, value_col: str, mode: str, clip: bool) -> str:
-    """Reuse the iframe document until its data or display settings change."""
-    return build_prediction_map(data, value_col, mode, clip=clip).get_root().render()
+def render_map_html(
+    data: pd.DataFrame, value_col: str, mode: str, clip: bool, renderer_version: str
+) -> str:
+    """Reuse map HTML until the data, settings, or renderer source changes."""
+    return map_utils.build_prediction_map(data, value_col, mode, clip=clip).get_root().render()
+
+
+def reload_results() -> None:
+    """Reread prediction files and rebuild maps on an explicit refresh."""
+    _load_preds_cached.clear()
+    render_map_html.clear()
 
 
 def compute_metrics(df: pd.DataFrame) -> dict:
@@ -213,7 +224,7 @@ if set(m["city"].dropna()) == {"nyc_sample"}:
 with st.sidebar:
     st.header("Selections")
     st.caption("Options reflect the prediction data available on this computer.")
-    st.button("Reload results", width="stretch")
+    st.button("Reload results", on_click=reload_results, width="stretch")
 
     cities = sorted(m["city"].dropna().unique().tolist())
     city = st.selectbox("City", cities, index=0, format_func=fmt_city)
@@ -326,7 +337,7 @@ with tab_map:
             )
         else:
             components.html(
-                render_map_html(dmap, value_col, map_mode, clip_outliers),
+                render_map_html(dmap, value_col, map_mode, clip_outliers, MAP_RENDERER_VERSION),
                 height=480,
                 scrolling=False,
             )
