@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from hashlib import sha256
 from pathlib import Path
 
@@ -11,7 +10,9 @@ import streamlit.components.v1 as components
 
 from terralens.data.dashboard import (
     discover_predictions,
+    load_prediction_metadata,
     load_predictions,
+    load_spatial_metadata,
     prediction_metrics,
 )
 from terralens.utils import maps as map_utils
@@ -259,22 +260,15 @@ if sel.empty:
 
 path = str(sel.iloc[0]["path"])
 df = load_preds(path)
-details_path = Path(path).with_suffix(".metrics.json")
-if details_path.is_file():
-    try:
-        details = json.loads(details_path.read_text())
-    except (OSError, ValueError):
-        details = {}
-    if isinstance(details, dict) and details.get("evaluation") == "random_holdout":
+details = load_prediction_metadata(path)
+if details.get("evaluation") == "random_holdout":
+    st.caption("Map and accuracy scores use held-out tracts, not the rows used to fit the model.")
+    source = details.get("data_source", {})
+    if isinstance(source, dict) and source.get("acs_period"):
         st.caption(
-            "Map and accuracy scores use held-out tracts, not the rows used to fit the model."
+            f"Observed labels: ACS {source['acs_period']}. OSM and ACS dates differ; "
+            "these are retrospective estimates, not forecasts."
         )
-        source = details.get("data_source", {})
-        if isinstance(source, dict) and source.get("acs_period"):
-            st.caption(
-                f"Observed labels: ACS {source['acs_period']}. OSM and ACS dates differ; "
-                "these are retrospective estimates, not forecasts."
-            )
 
 met = compute_metrics(df)
 st.markdown(
@@ -382,6 +376,84 @@ with tab_diag:
         st.metric("Average error", format_value(average_error))
         st.caption("Use the Error layer on the map if you want to see where the larger misses are.")
 
+        baseline = details.get("baseline", {})
+        if isinstance(baseline, dict) and baseline.get("strategy") == "training_mean":
+            try:
+                training_mean = float(baseline["value"])
+            except (KeyError, TypeError, ValueError):
+                training_mean = float("nan")
+            if np.isfinite(training_mean):
+                baseline_scores = compute_metrics(d.assign(y_pred=training_mean))
+                st.markdown("#### Compare with a simple baseline")
+                st.caption(
+                    "The baseline predicts the training-data average for every test tract. "
+                    "It uses no test values to choose that average."
+                )
+                st.metric("Baseline RMSE", format_value(baseline_scores["rmse"]))
+                if baseline_scores["rmse"] > 0:
+                    reduction = 1 - (met["rmse"] / baseline_scores["rmse"]) ** 2
+                    if reduction > 0:
+                        st.write(
+                            f"This model has **{reduction:.1%} lower squared error** than the baseline."
+                        )
+                    else:
+                        st.warning(
+                            f"This model has {abs(reduction):.1%} higher squared error than "
+                            "the training-average baseline on these test tracts."
+                        )
+
+        selection = details.get("model_selection", {})
+        if isinstance(selection, dict) and selection.get("method") == "cross_validation":
+            folds = selection.get("folds")
+            st.caption(
+                f"Model settings were selected with {folds}-fold cross-validation "
+                "within the training data. These test tracts were excluded from that selection."
+            )
+        if not city.endswith("_sample"):
+            st.caption(
+                "A random tract split measures nearby-area estimation. "
+                "It does not establish accuracy in a different city or future year."
+            )
+
+        spatial = load_spatial_metadata(path, details)
+        spatial_metrics = spatial.get("model_metrics", {})
+        if isinstance(spatial_metrics, dict):
+            try:
+                spatial_r2 = float(spatial_metrics["r2"])
+                spatial_mae = float(spatial_metrics["mae"])
+                spatial_rmse = float(spatial_metrics["rmse"])
+                spatial_skill = float(spatial["mse_skill_vs_training_mean"])
+                spatial_rows = int(spatial["rows"])
+            except (KeyError, TypeError, ValueError):
+                spatial_r2 = spatial_mae = spatial_rmse = spatial_skill = float("nan")
+                spatial_rows = 0
+            if (
+                spatial_rows >= 2
+                and np.isfinite([spatial_r2, spatial_mae, spatial_rmse, spatial_skill]).all()
+            ):
+                st.markdown("#### Separate geographic test")
+                st.caption(
+                    "Whole map areas are held out, with model settings selected only in "
+                    "the remaining areas. These scores use a different test design from "
+                    "the map and leaderboard above. Adjacent areas have no geographic buffer."
+                )
+                st.metric("Geographic R²", f"{spatial_r2:.3f}")
+                st.write(
+                    f"MAE: **{format_value(spatial_mae)}** · "
+                    f"RMSE: **{format_value(spatial_rmse)}** · "
+                    f"Tracts checked: **{spatial_rows:,}**"
+                )
+                if spatial_skill > 0:
+                    st.write(
+                        f"Squared error is **{spatial_skill:.1%} lower** than predicting "
+                        "each training fold's average."
+                    )
+                else:
+                    st.warning(
+                        "In this geographic test, the model does not beat the training-average "
+                        "baseline. Its map should be treated as exploratory."
+                    )
+
 with tab_lead:
     st.markdown("### Model scores")
     sub = m[(m.city == city) & (m.feature_set == feature_set) & (m.target == target)].copy()
@@ -452,8 +524,9 @@ with tab_explain:
     with st.expander("Which model should I trust?"):
         st.write(
             "Compare models tested on the same areas and data split. "
-            "Higher R² and lower MAE are generally better, but sample scores "
-            "cannot tell you which model will work best on real data."
+            "Compare their errors against the training-average baseline in Quick check. "
+            "R² is not an accuracy percentage. Performance can vary by target and area; "
+            "sample scores do not establish accuracy on real data."
         )
     with st.expander("Why do I only see dots and not polygons?"):
         st.write(

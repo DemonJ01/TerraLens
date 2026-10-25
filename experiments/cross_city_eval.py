@@ -99,6 +99,8 @@ def infer_feature_cols(df: pd.DataFrame) -> List[str]:
       - keep numeric columns only
       - drop target
     """
+    from scripts.cache_predictions import is_complaint_feature
+
     exclude = {
         "city",
         "tract_id",
@@ -120,7 +122,7 @@ def infer_feature_cols(df: pd.DataFrame) -> List[str]:
     for c in df.columns:
         if c in exclude:
             continue
-        if any(tag in c.lower() for tag in ("311", "complaint", "service")):
+        if is_complaint_feature(c):
             continue
         # numeric only
         if pd.api.types.is_numeric_dtype(df[c]):

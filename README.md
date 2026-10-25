@@ -54,7 +54,13 @@ To add Chicago/Cook County and San Francisco, run their preparation commands too
 .venv/bin/python scripts/prepare_city.py --city san_francisco --year 2021 --models ridge,extra_trees,hist_gb,xgboost
 ```
 
-Each command downloads official Census tract boundaries, ACS labels, and an OpenStreetMap extract; builds measured road-length and POI features; and trains the four selected models for each measure with sufficient observations. Existing predictions for other cities are retained. After completion, choose **Reload results** to refresh the City menu.
+Each command downloads official Census tract boundaries, ACS labels, and an OpenStreetMap extract; builds measured geographic features; and trains the selected models for each measure with sufficient observations. Features include POI categories, road classes and densities, building footprints, land-cover fractions, and tract shape. Existing predictions for other cities are retained. After completion, choose **Reload results** to refresh the City menu.
+
+To replace older cached geographic features while reusing downloaded inputs, add `--rebuild-features --skip-downloads` to a preparation command. For example:
+
+```bash
+.venv/bin/python scripts/prepare_city.py --city nyc --year 2021 --models ridge,extra_trees,hist_gb,xgboost --rebuild-features --skip-downloads
+```
 
 NYC uses a smaller BBBike extract, with roughly 320 MB of downloads. Chicago/Cook County uses the larger Illinois extract, and San Francisco uses the Northern California extract. Downloads are reused on subsequent runs. No Census API key is needed for the bulk-data route. To use the Census API instead, set `CENSUS_API_KEY` in your local environment; keys are never written to result metadata. Add `--dry-run` to a preparation command to inspect its steps without downloading or training.
 
@@ -69,6 +75,24 @@ bash scripts/run_everything.sh 2021
 To reuse existing raw data and features, run `bash scripts/run_everything.sh 2021 --skip-downloads`. Use `bash scripts/run_everything.sh --help` to see the prerequisites. This workflow prepares three cities, trains models, caches predictions, and generates experiment summaries, figures, and maps. NYC 311 comparisons require separately prepared complaint features.
 
 The dashboard reads saved predictions and does not train models. On a fresh checkout it creates its sample files locally. Choose **Reload results** after generating real predictions; real results replace sample choices automatically. NYC 311 data is optional and is not required for OSM-only results.
+
+## Model training and evaluation
+
+The prediction-cache workflow reserves 20% of valid observations for testing. Model settings are selected with three-fold cross-validation inside the remaining training data. Imputation, scaling, Ridge feature selection and nonlinear basis fitting are repeated within each training fold. Monetary targets can be fitted directly or on a log scale; the choice is selected using cross-validation error in original dollar units. The test observations do not select model settings. Use `--cv-folds` and `--n-jobs` with `cache_predictions.py` to control validation folds and CPU threads.
+
+Ridge remains a regularized linear regression over an explicitly transformed feature basis, with linear, smooth geographic, and spline options. Tree models retain their own model families. Census target columns and tract identifiers are excluded from predictors, and invalid or missing target labels are excluded for that target rather than replaced with zeros.
+
+Each metrics sidecar records the input feature names, selected settings, training-only validation results, train/test tract identifiers, data and prediction hashes, and a baseline that predicts the training-data mean. **Quick check** compares the selected model with that baseline on the same test tracts. R² is not an accuracy percentage; positive R² alone does not establish that an estimate is useful for a particular decision. The selection procedure follows the separation of training, validation, and testing described in the [scikit-learn cross-validation guide](https://scikit-learn.org/stable/modules/cross_validation.html).
+
+Random tract splits measure estimates within the prepared area. Run separate nested geographic block validation with:
+
+```bash
+.venv/bin/python scripts/validate_models.py --city nyc --models ridge,extra_trees,hist_gb,xgboost --targets all --n-jobs 2
+```
+
+This writes out-of-fold predictions and metrics under `outputs/spatial_validation/`. The four-by-four coordinate grid is defined without target values. Three outer folds hold whole grid cells out of training; three inner folds tune settings using only the remaining cells. Adjacent cells have no geographic buffer, and these scores do not establish transfer to another city or future year. **Quick check** shows matching geographic validation separately when its dataset and prediction hashes agree. The map and leaderboard continue to display the random holdout, rather than mixing these evaluation schemes.
+
+OSM mapping completeness varies, so zero mapped features do not prove that a real-world feature is absent. ACS medians may be top-coded and are survey estimates; dollar errors are measured against the published values. Smaller areas and targets with fewer valid observations have less stable estimates. Generated predictions and validation reports remain local.
 
 ## Project layout
 

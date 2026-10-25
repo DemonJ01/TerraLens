@@ -13,7 +13,7 @@ def prepare_xgboost_runtime() -> None:
             ctypes.CDLL(str(runtime))
 
 
-def get_model(name: str, seed: int = 42):
+def get_model(name: str, seed: int = 42, n_jobs: int = -1):
     name = name.lower()
 
     if name == "ridge":
@@ -44,7 +44,7 @@ def get_model(name: str, seed: int = 42):
             max_depth=None,
             min_samples_leaf=2,
             random_state=seed,
-            n_jobs=-1,
+            n_jobs=n_jobs,
         )
 
     if name == "extra_trees":
@@ -55,7 +55,7 @@ def get_model(name: str, seed: int = 42):
             max_depth=None,
             min_samples_leaf=2,
             random_state=seed,
-            n_jobs=-1,
+            n_jobs=n_jobs,
         )
 
     if name == "mlp":
@@ -92,7 +92,7 @@ def get_model(name: str, seed: int = 42):
             colsample_bytree=0.8,
             reg_lambda=1.0,
             random_state=seed,
-            n_jobs=-1,
+            n_jobs=n_jobs,
         )
 
     raise ValueError(f"Unknown model: {name}")

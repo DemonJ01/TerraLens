@@ -1,5 +1,7 @@
 """Prediction loading shared by the TerraLens dashboard and its checks."""
 
+import json
+from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +9,48 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_COLUMNS = ["city", "model", "feature_set", "target", "path"]
+
+
+def load_prediction_metadata(path: str | Path) -> dict:
+    """Ignore malformed sidecars and sidecars belonging to replaced predictions."""
+    path = Path(path)
+    try:
+        details = json.loads(path.with_suffix(".metrics.json").read_text(encoding="utf-8"))
+        if not isinstance(details, dict):
+            return {}
+        expected_hash = details.get("prediction_sha256")
+        if expected_hash and expected_hash != sha256(path.read_bytes()).hexdigest():
+            return {}
+        return details
+    except (OSError, ValueError):
+        return {}
+
+
+def load_spatial_metadata(path: str | Path, prediction_metadata: dict) -> dict:
+    """Show separate geographic validation only for the matching input dataset."""
+    path = Path(path)
+    dataset_hash = prediction_metadata.get("dataset_sha256")
+    if not dataset_hash:
+        return {}
+    sidecar = path.parent.parent / "spatial_validation" / f"{path.stem}.spatial.json"
+    try:
+        details = json.loads(sidecar.read_text(encoding="utf-8"))
+        if not isinstance(details, dict) or details.get("evaluation") != "nested_spatial_block_cv":
+            return {}
+        if details.get("dataset_sha256") != dataset_hash:
+            return {}
+        for key in ("city", "model", "feature_set", "target"):
+            if details.get(key) != prediction_metadata.get(key):
+                return {}
+        expected_hash = details.get("prediction_sha256")
+        if (
+            not expected_hash
+            or expected_hash != sha256(sidecar.with_suffix(".parquet").read_bytes()).hexdigest()
+        ):
+            return {}
+        return details
+    except (OSError, ValueError):
+        return {}
 
 
 def load_predictions(path: str | Path) -> pd.DataFrame:

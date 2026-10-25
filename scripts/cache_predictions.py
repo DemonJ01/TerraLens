@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+from importlib.metadata import version
+from io import BytesIO
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -16,7 +20,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from scripts.model_zoo import get_model  # noqa: E402 - local script path bootstrap
+from scripts.model_selection import select_and_fit_model  # noqa: E402 - script bootstrap
 
 TARGETS = [
     "median_income",
@@ -52,11 +56,51 @@ def load_dataset(
     )
     if not p.exists():
         raise SystemExit(f"❌ Missing dataset: {p}")
-    df = pd.read_parquet(p)
+    # Bind the fingerprint to the exact bytes parsed, rather than hashing a
+    # possibly changed file after pandas has already read it.
+    contents = p.read_bytes()
+    dataset_sha256 = hashlib.sha256(contents).hexdigest()
+    df = pd.read_parquet(BytesIO(contents))
+    verify_dataset_unchanged(p, dataset_sha256)
     missing = {"tract_id", "lat", "lon"} - set(df.columns)
     if missing:
         raise SystemExit(f"❌ Dataset missing required columns: {sorted(missing)}")
+    ids = df["tract_id"].astype("string")
+    if ids.isna().any() or ids.str.strip().eq("").any():
+        raise ValueError(f"Dataset has missing or blank tract IDs: {p}")
+    if ids.str.strip().ne(ids).any():
+        raise ValueError(f"Dataset tract IDs contain surrounding whitespace: {p}")
+    if ids.duplicated().any():
+        raise ValueError(f"Dataset has duplicate tract IDs: {p}")
+    df["tract_id"] = ids
+    for coordinate, lower, upper in (("lat", -90.0, 90.0), ("lon", -180.0, 180.0)):
+        values = pd.to_numeric(df[coordinate], errors="coerce")
+        if (
+            not np.isfinite(values.to_numpy(dtype=float, na_value=np.nan)).all()
+            or not values.between(lower, upper).all()
+        ):
+            raise ValueError(f"Dataset has invalid {coordinate} coordinates: {p}")
+        df[coordinate] = values.astype(float)
+    # A file's stored pandas index is not the observation identifier. Resetting
+    # it prevents duplicate index labels from expanding later .loc selections.
+    df = df.reset_index(drop=True)
+    df.attrs["dataset_path"] = str(p)
+    df.attrs["dataset_sha256"] = dataset_sha256
     return df
+
+
+def verify_dataset_unchanged(path: Path, expected_sha256: str) -> None:
+    """Refuse to publish results if the loaded source changed during training."""
+    if hashlib.sha256(path.read_bytes()).hexdigest() != expected_sha256:
+        raise ValueError(f"Dataset changed while loading or training: {path}")
+
+
+def is_complaint_feature(name: str) -> bool:
+    """Recognize complaint inputs without dropping OSM service roads or POIs."""
+    name = name.lower()
+    return name.startswith(("complaint_", "complaints_", "service_request", "nyc311_")) or bool(
+        re.search(r"(?:^|_)311(?:_|$)", name)
+    )
 
 
 def select_features(df: pd.DataFrame, feature_set: str) -> list[str]:
@@ -66,9 +110,7 @@ def select_features(df: pd.DataFrame, feature_set: str) -> list[str]:
         for c in df.columns
         if c not in BASE_COLS.union(targets) and pd.api.types.is_numeric_dtype(df[c])
     ]
-    complaint_cols = [
-        c for c in feat_cols if any(tag in c.lower() for tag in ("311", "complaint", "service"))
-    ]
+    complaint_cols = [c for c in feat_cols if is_complaint_feature(c)]
 
     if feature_set == "osm_only":
         return [c for c in feat_cols if c not in complaint_cols]
@@ -83,8 +125,10 @@ def select_features(df: pd.DataFrame, feature_set: str) -> list[str]:
     raise SystemExit(f"❌ Unknown feature_set: {feature_set}")
 
 
-def clean_xy(X: pd.DataFrame, y: pd.Series):
-    X = X.replace([np.inf, -np.inf], np.nan).fillna(0)
+def clean_xy(X: pd.DataFrame, y: pd.Series, *, fill_features: bool = True):
+    X = X.replace([np.inf, -np.inf], np.nan)
+    if fill_features:
+        X = X.fillna(0)
     y = pd.to_numeric(y, errors="coerce").replace([np.inf, -np.inf], np.nan)
     ok = y.notna()
     return X.loc[ok].astype(float), y.loc[ok].astype(float)
@@ -168,6 +212,8 @@ def main() -> int:
     ap.add_argument("--data-dir", type=Path, default=Path("data/processed"))
     ap.add_argument("--out-dir", type=Path, default=Path("outputs/preds"))
     ap.add_argument("--test_size", type=float, default=0.2)
+    ap.add_argument("--cv-folds", type=int, default=3, help="Inner training-only CV folds")
+    ap.add_argument("--n-jobs", type=int, default=2, help="Maximum estimator/BLAS threads")
     ap.add_argument(
         "--strat_bins",
         type=int,
@@ -188,6 +234,8 @@ def main() -> int:
         ap.error("Provide at least one model and feature set")
     if not 0 < args.test_size < 1:
         ap.error("--test_size must be between 0 and 1")
+    if args.cv_folds < 2 or args.n_jobs < 1:
+        ap.error("--cv-folds must be at least 2 and --n-jobs must be positive")
     unknown = set(targets) - set(TARGETS)
     if unknown:
         ap.error(f"Unknown targets: {sorted(unknown)}")
@@ -196,13 +244,17 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     manifest_rows = []
+    loaded_datasets = []
 
     for feature_set in feature_sets:
         if feature_set == "osm_311" and args.city != "nyc":
             continue
 
         df = load_dataset(args.city, feature_set, args.data_dir)
-        source_file = args.data_dir / f"{args.city}_dataset.source.json"
+        dataset_file = Path(df.attrs["dataset_path"])
+        dataset_sha256 = df.attrs["dataset_sha256"]
+        loaded_datasets.append((dataset_file, dataset_sha256))
+        source_file = dataset_file.with_suffix(".source.json")
         source = {}
         if source_file.is_file():
             try:
@@ -219,47 +271,68 @@ def main() -> int:
                 continue
 
             y_raw = df[target].copy()
-            Xc, yc_raw = clean_xy(X, y_raw)
+            # Feature imputation is learned separately in every inner training
+            # fold. Invalid labels are excluded, never repaired by clipping.
+            Xc, yc_raw = clean_xy(X, y_raw, fill_features=False)
+            valid_domain = pd.Series(True, index=yc_raw.index)
+            if target in MONEY_TARGETS:
+                valid_domain = yc_raw >= 0.0
+            elif target in RATE_TARGETS:
+                valid_domain = yc_raw.between(0.0, 1.0)
+            Xc, yc_raw = Xc.loc[valid_domain], yc_raw.loc[valid_domain]
             if len(yc_raw) < 5:
                 print(f"Skipping {target}: need at least 5 valid target rows.")
                 continue
 
-            # target transforms
-            yc, tf = transform_y(yc_raw, target)
+            # Keep the historical outer split: quantile strata were calculated
+            # on the monotonic legacy transform. Target transform selection now
+            # happens solely inside training CV, using original-scale errors.
+            stratification_target, _ = transform_y(yc_raw, target)
 
             strat = None
             if args.strat_bins and args.strat_bins > 0:
-                strat = make_strat_bins(yc, bins=int(args.strat_bins))
+                strat = make_strat_bins(stratification_target, bins=int(args.strat_bins))
                 if strat is not None:
-                    n_test = int(np.ceil(len(yc) * args.test_size))
+                    n_test = int(np.ceil(len(yc_raw) * args.test_size))
                     if (
                         strat.value_counts().min() < 2
-                        or min(n_test, len(yc) - n_test) < strat.nunique()
+                        or min(n_test, len(yc_raw) - n_test) < strat.nunique()
                     ):
                         strat = None
 
             X_tr, X_te, y_tr, y_te = train_test_split(
-                Xc, yc, test_size=args.test_size, random_state=args.seed, stratify=strat
+                Xc, yc_raw, test_size=args.test_size, random_state=args.seed, stratify=strat
             )
 
-            # Keep "true" values in original scale for reporting + parquet
-            # (invert y_te if we transformed)
-            y_te_true = y_te.copy()
-            if tf.get("type") == "log1p" and target in MONEY_TARGETS:
-                y_te_true = np.expm1(y_te_true).clip(0.0, np.inf)
-            if target in RATE_TARGETS:
-                y_te_true = y_te_true.clip(0.0, 1.0)
+            y_true = np.asarray(y_te, dtype=float)
+            baseline_value = float(y_tr.mean())
+            baseline_prediction = np.full(len(y_true), baseline_value)
+            baseline = {
+                "strategy": "training_mean",
+                "value": baseline_value,
+                "r2": float(r2_score(y_true, baseline_prediction)),
+                "mae": float(mean_absolute_error(y_true, baseline_prediction)),
+                "rmse": float(np.sqrt(mean_squared_error(y_true, baseline_prediction))),
+            }
+            train_ids = df.loc[y_tr.index, "tract_id"].astype(str).tolist()
+            test_ids = df.loc[y_te.index, "tract_id"].astype(str).tolist()
 
             for model_name in models:
-                model = get_model(model_name, seed=args.seed)
-                model = maybe_wrap_scaler(model_name, model)
-
-                model.fit(X_tr, y_tr)
-                y_pred_t = model.predict(X_te)
-                y_pred = inverse_pred(y_pred_t, target, tf)
+                model, selection = select_and_fit_model(
+                    model_name,
+                    X_tr,
+                    y_tr,
+                    target,
+                    seed=args.seed,
+                    cv_folds=args.cv_folds,
+                    n_jobs=args.n_jobs,
+                )
+                verify_dataset_unchanged(dataset_file, dataset_sha256)
+                y_pred = model.predict(X_te)
+                if not np.isfinite(y_pred).all():
+                    raise ValueError(f"Non-finite held-out predictions: {model_name}/{target}")
 
                 # metrics on original scale
-                y_true = np.asarray(y_te_true, dtype=float)
                 mae = float(mean_absolute_error(y_true, y_pred))
                 rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
                 r2 = float(r2_score(y_true, y_pred))
@@ -277,6 +350,7 @@ def main() -> int:
 
                 fname = f"{args.city}__{model_name}__{feature_set}__{target}.parquet"
                 path = out_dir / fname
+                verify_dataset_unchanged(dataset_file, dataset_sha256)
                 out.to_parquet(path, index=False)
 
                 row = {
@@ -291,7 +365,7 @@ def main() -> int:
                     "rmse": rmse,
                     "r2": r2,
                     "spearman": sp,
-                    "y_transform": tf.get("type", "none"),
+                    "y_transform": model.target_transform,
                     "stratified_split": bool(strat is not None),
                     "strat_bins": int(args.strat_bins),
                 }
@@ -305,6 +379,32 @@ def main() -> int:
                     "test_rows": len(X_te),
                     "seed": args.seed,
                     "data_source": source,
+                    "feature_names": feat_cols,
+                    "baseline": baseline,
+                    "beats_training_mean": bool(rmse < baseline["rmse"]),
+                    "model_selection": selection,
+                    "valid_label_rows": len(yc_raw),
+                    "excluded_target_rows": len(df) - len(yc_raw),
+                    "target_filter": (
+                        "finite_nonnegative" if target in MONEY_TARGETS else "finite_in_0_1"
+                    ),
+                    "train_tract_ids": train_ids,
+                    "test_tract_ids": test_ids,
+                    "train_tract_ids_sha256": hashlib.sha256(
+                        "\n".join(train_ids).encode()
+                    ).hexdigest(),
+                    "test_tract_ids_sha256": hashlib.sha256(
+                        "\n".join(test_ids).encode()
+                    ).hexdigest(),
+                    "prediction_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "dataset_path": str(dataset_file),
+                    "dataset_sha256": dataset_sha256,
+                    "package_versions": {
+                        "numpy": np.__version__,
+                        "pandas": pd.__version__,
+                        "scikit-learn": version("scikit-learn"),
+                        **({"xgboost": version("xgboost")} if model_name == "xgboost" else {}),
+                    },
                 }
                 (
                     out_dir / f"{args.city}__{model_name}__{feature_set}__{target}.metrics.json"
@@ -341,7 +441,11 @@ def main() -> int:
             subset=["city", "model", "feature_set", "target"], keep="last"
         )
 
+    for dataset_file, dataset_sha256 in loaded_datasets:
+        verify_dataset_unchanged(dataset_file, dataset_sha256)
     manifest.to_csv(mfile, index=False)
+    for dataset_file, dataset_sha256 in loaded_datasets:
+        verify_dataset_unchanged(dataset_file, dataset_sha256)
     print(f"\n✅ Wrote manifest: {mfile} (rows={len(manifest)})")
     return 0
 

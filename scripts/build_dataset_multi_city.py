@@ -84,6 +84,11 @@ def main() -> int:
     ap.add_argument("--city", required=True, choices=["nyc", "chicago", "san_francisco"])
     ap.add_argument("--year", type=int, default=2021)
     ap.add_argument("--output", required=True)
+    ap.add_argument(
+        "--geo-features",
+        type=Path,
+        help="Optional measured feature table; defaults to the city's prepared features",
+    )
     ap.add_argument("--limit", type=int, default=0, help="Optional cap after merge (0 = no cap)")
     args = ap.parse_args()
 
@@ -92,7 +97,7 @@ def main() -> int:
 
     tracts_path = Path(f"data/raw/census/{city}_tracts_{year}.gpkg")
     income_path = Path(f"data/raw/census/{city}_income_{year}.parquet")
-    geo_path = Path(f"data/features/{city}_geo_features.parquet")
+    geo_path = args.geo_features or Path(f"data/features/{city}_geo_features.parquet")
 
     for p in [tracts_path, geo_path]:
         if not p.exists():
@@ -114,7 +119,7 @@ def main() -> int:
             if not income_path.exists():
                 raise SystemExit(f"❌ Missing income fallback: {income_path}")
             income = load_income(income_path)
-            targets = targets.merge(income, on="tract_id", how="left")
+            targets = targets.merge(income, on="tract_id", how="left", validate="one_to_one")
         print(f"✅ Using targets: {targets_path} (cols={len(targets.columns) - 1})")
     else:
         if not income_path.exists():
@@ -124,7 +129,7 @@ def main() -> int:
         print("⚠️  No targets parquet found; using income-only labels.")
 
     # Merge labels into tracts
-    gdf = tracts.merge(targets, on="tract_id", how="inner")
+    gdf = tracts.merge(targets, on="tract_id", how="inner", validate="one_to_one")
 
     # Centroids for lat/lon
     if gdf.crs is None:
@@ -157,7 +162,7 @@ def main() -> int:
         df[c] = gdf[c]
 
     # Merge geo features
-    df = df.merge(geo, on="tract_id", how="left")
+    df = df.merge(geo, on="tract_id", how="left", validate="one_to_one")
     feature_cols = [c for c in geo.columns if c != "tract_id" and c in df.columns]
     df[feature_cols] = df[feature_cols].fillna(0)
 
@@ -174,6 +179,13 @@ def main() -> int:
             osm_source = json.loads(osm_source_path.read_text())
         except (OSError, ValueError):
             pass
+    feature_source_path = geo_path.with_suffix(".source.json")
+    feature_source = {}
+    if feature_source_path.is_file():
+        try:
+            feature_source = json.loads(feature_source_path.read_text())
+        except (OSError, ValueError):
+            pass
     out_path.with_suffix(".source.json").write_text(
         json.dumps(
             {
@@ -182,6 +194,7 @@ def main() -> int:
                 "acs_period": f"{year - 4}–{year}",
                 "acs_source": str(targets_path or income_path),
                 "osm_source": osm_source,
+                "measured_features": feature_source,
                 "rows": len(df),
                 "caution": (
                     "ACS labels and OSM snapshot dates differ; "

@@ -9,14 +9,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def preparation_steps(city: str, year: int, models: str, skip_downloads=False, root=ROOT):
+def preparation_steps(
+    city: str, year: int, models: str, skip_downloads=False, root=ROOT, rebuild_features=False
+):
     census = root / "data/raw/census"
     features = root / "data/features" / f"{city}_geo_features.parquet"
     osm = root / "data/raw/osm" / f"{city}.osm.pbf"
     tracts = census / f"{city}_tracts_{year}.gpkg"
     targets = census / f"{city}_targets_{year}.parquet"
     if skip_downloads:
-        required = [tracts, targets, *([] if features.is_file() else [osm])]
+        needs_features = rebuild_features or not features.is_file()
+        required = [tracts, targets, *([osm] if needs_features else [])]
         missing = [str(path.relative_to(root)) for path in required if not path.is_file()]
         if missing:
             raise ValueError("Missing local inputs: " + ", ".join(missing))
@@ -25,7 +28,7 @@ def preparation_steps(city: str, year: int, models: str, skip_downloads=False, r
         steps.append(["fetch_census_tracts_multi.py", "--cities", city, "--year", str(year)])
     if not targets.is_file():
         steps.append(["download_acs_targets.py", "--city", city, "--year", str(year)])
-    if not features.is_file():
+    if rebuild_features or not features.is_file():
         if not osm.is_file():
             steps.append(["download_osm_extract.py", "--city", city])
         steps.append(
@@ -39,6 +42,7 @@ def preparation_steps(city: str, year: int, models: str, skip_downloads=False, r
                 str(tracts),
                 "--output",
                 str(features),
+                *(["--force"] if rebuild_features else []),
             ]
         )
     steps.extend(
@@ -74,10 +78,21 @@ def main():
     parser.add_argument("--year", type=int, default=2021)
     parser.add_argument("--models", default="ridge,extra_trees,hist_gb")
     parser.add_argument("--skip-downloads", action="store_true")
+    parser.add_argument(
+        "--rebuild-features",
+        action="store_true",
+        help="Recompute geographic features from the local OSM extract before training",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show steps without running them")
     args = parser.parse_args()
     try:
-        steps = preparation_steps(args.city, args.year, args.models, args.skip_downloads)
+        steps = preparation_steps(
+            args.city,
+            args.year,
+            args.models,
+            args.skip_downloads,
+            rebuild_features=args.rebuild_features,
+        )
     except ValueError as exc:
         parser.error(str(exc))
     for step in steps:
