@@ -80,6 +80,9 @@ TARGET_LABELS = {
 }
 
 CITY_LABELS = {
+    "nyc": "NYC",
+    "chicago": "Chicago / Cook County",
+    "san_francisco": "San Francisco",
     "nyc_sample": "NYC (sample)",
 }
 
