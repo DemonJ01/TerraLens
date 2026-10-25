@@ -17,7 +17,9 @@ MODEL_COLORS = {
 }
 
 
-def score_chart(scores: pd.DataFrame, metric: str, model_labels: dict, rate: bool):
+def score_chart(
+    scores: pd.DataFrame, metric: str, model_labels: dict, rate: bool, *, text_color="#e6edf3"
+):
     """Keep a zero reference and print the measured values beside each model."""
     table = scores.copy()
     key = {"R²": "r2", "MAE": "mae", "RMSE": "rmse"}[metric]
@@ -34,7 +36,8 @@ def score_chart(scores: pd.DataFrame, metric: str, model_labels: dict, rate: boo
     order = table["Model"].tolist()
     colors = [MODEL_COLORS.get(name, "#f472b6") for name in table["model"]]
     low, high = min(0.0, table["Value"].min()), max(0.0, table["Value"].max())
-    label_room = max(high - low, abs(high), 0.001) * 0.35
+    label_room = max(high - low, abs(high), 0.001) * 0.12
+    midpoint = (low + high) / 2
     base = alt.Chart(table).encode(
         x=alt.X(
             "Value:Q",
@@ -51,10 +54,21 @@ def score_chart(scores: pd.DataFrame, metric: str, model_labels: dict, rate: boo
     points = base.mark_point(filled=True, size=150).encode(
         color=alt.Color("Model:N", scale=alt.Scale(domain=order, range=colors), legend=None)
     )
-    labels = base.mark_text(align="left", dx=12, fontSize=12).encode(text="Label:N")
+    # Place labels toward the plot's center so long values stay visible on
+    # narrow screens. Vega's default text fill is black, even in a dark app.
+    left_labels = (
+        base.transform_filter(alt.datum.Value >= midpoint)
+        .mark_text(align="right", dx=-12, fontSize=12, color=text_color)
+        .encode(text="Label:N")
+    )
+    right_labels = (
+        base.transform_filter(alt.datum.Value < midpoint)
+        .mark_text(align="left", dx=12, fontSize=12, color=text_color)
+        .encode(text="Label:N")
+    )
     zero = alt.Chart(pd.DataFrame({"zero": [0]})).mark_rule(color="#64748b").encode(x="zero:Q")
     return (
-        (zero + points + labels)
+        (zero + points + left_labels + right_labels)
         .properties(height=max(150, 48 * len(table)))
         .configure_view(stroke=None)
     )
@@ -138,7 +152,10 @@ def render_model_comparison(
             else f"**Highest R²: {model_labels.get(leader['model'], leader['model'])}**"
         )
         st.caption(f"{metric} = {formatted}. {direction}. R² is not an accuracy percentage.")
-        st.altair_chart(score_chart(scores, metric, model_labels, rate), width="stretch")
+        text_color = "#172033" if st.context.theme.type == "light" else "#e6edf3"
+        st.altair_chart(
+            score_chart(scores, metric, model_labels, rate, text_color=text_color), width="stretch"
+        )
     table = scores.rename(
         columns={"model": "Model", "r2": "R²", "mae": "MAE", "rmse": "RMSE", "n": "N"}
     )
