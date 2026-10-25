@@ -28,6 +28,7 @@ dependencies = [
     "matplotlib>=3.8",
     "pyarrow>=14.0",
     "streamlit>=1.54,<2",
+    "altair>=5,<7",
     "streamlit-folium>=0.26,<1",
     "folium>=0.20,<1"
 ]

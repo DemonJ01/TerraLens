@@ -2,6 +2,8 @@
 
 TerraLens explores neighborhood estimates from open city data. The dashboard includes an interactive map, a quick accuracy check, model rankings, comparisons, and simple explanations.
 
+**Compare** ranks all available models for the chosen city and target, with precise R², MAE, and RMSE values. Choose **Model A** and **Model B** to inspect their actual prediction gaps on matching tracts and download the paired values. Similar overall scores can come from different tract-level estimates. The sidebar model controls Map and Quick check; the comparison includes all models for that city and target. Models are compared only on shared observed tracts, and conflicting observed values or tract identities are rejected.
+
 ## Run the dashboard
 
 Open a terminal in this project folder and run:

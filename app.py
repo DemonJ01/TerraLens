@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
+from terralens.data.comparison import align_model_predictions
 from terralens.data.dashboard import (
     discover_predictions,
     load_prediction_metadata,
@@ -16,6 +17,7 @@ from terralens.data.dashboard import (
     prediction_metrics,
 )
 from terralens.utils import maps as map_utils
+from terralens.ui.comparison import render_model_comparison
 
 MAP_RENDERER_VERSION = sha256(Path(map_utils.__file__).read_bytes()).hexdigest()
 
@@ -458,33 +460,56 @@ with tab_lead:
     st.markdown("### Model scores")
     sub = m[(m.city == city) & (m.feature_set == feature_set) & (m.target == target)].copy()
 
-    rows = []
+    frames = {}
+    comparison = None
+    comparison_issue = None
     for _, r in sub.iterrows():
         try:
             dd = load_preds(str(r["path"]))
-            if not {"y_true", "y_pred"}.issubset(dd.columns):
-                continue
-            mm = compute_metrics(dd)
-            if mm["n"] == 0:
-                continue
-            rows.append(
-                {
-                    "Model": fmt_model(str(r["model"])),
-                    "R²": mm["r2"],
-                    "MAE": mm["mae"],
-                    "RMSE": mm["rmse"],
-                    "N": mm["n"],
-                }
-            )
-        except Exception:
-            continue
+            for field in ("city", "model", "feature_set", "target"):
+                if field in dd and not dd[field].eq(r[field]).all():
+                    raise ValueError(f"Saved predictions disagree with the {field} selection.")
+            frames[str(r["model"])] = dd
+        except (OSError, ValueError, KeyError) as exc:
+            comparison_issue = f"Cannot compare these saved results: {exc}"
+            break
 
-    lb = pd.DataFrame(rows)
+    lb = pd.DataFrame()
+    if frames and not comparison_issue:
+        try:
+            comparison = align_model_predictions(frames)
+        except ValueError as exc:
+            comparison_issue = str(exc)
+        else:
+            lb = comparison.scores.rename(
+                columns={"model": "Model", "r2": "R²", "mae": "MAE", "rmse": "RMSE", "n": "N"}
+            )
+            lb["Model"] = lb["Model"].map(fmt_model)
+    if comparison_issue:
+        st.warning(comparison_issue)
     if lb.empty:
         st.info("Model scores need predictions with observed values to compare against.")
     else:
         lb = lb.sort_values(["R²", "MAE"], ascending=[False, True])
-        st.dataframe(lb, width="stretch")
+        st.caption(
+            f"Scores use the same {comparison.common_n:,} observed test tracts for every model."
+        )
+        if comparison.counts["discarded_rows"].sum():
+            st.caption("Only observed tracts shared by every model are included in these scores.")
+        st.dataframe(
+            lb,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "R²": st.column_config.NumberColumn(format="%.6f"),
+                "MAE": st.column_config.NumberColumn(
+                    format="%.6f" if target.endswith("_rate") else "%.2f"
+                ),
+                "RMSE": st.column_config.NumberColumn(
+                    format="%.6f" if target.endswith("_rate") else "%.2f"
+                ),
+            },
+        )
         download_csv_button(
             lb,
             f"{city}_{feature_set}_{target}_leaderboard.csv",
@@ -493,18 +518,21 @@ with tab_lead:
 
 with tab_compare:
     st.markdown("### Compare models")
-    st.caption("Compare the available models for the selected city and measure.")
-    if lb.empty:
+    if comparison is None or lb.empty:
+        if comparison_issue:
+            st.warning(comparison_issue)
         st.info("No model scores are available for this selection yet.")
     else:
-        comparison = lb.sort_values(["R²", "MAE"], ascending=[False, True]).set_index("Model")
-        r2 = comparison["R²"].dropna()
-        if r2.empty:
-            st.info("R² requires multiple different observed values. Compare MAE and RMSE below.")
-        else:
-            st.bar_chart(r2, width="stretch")
-            st.caption("Higher R² means a closer fit to the observed values.")
-        st.dataframe(comparison, width="stretch")
+        render_model_comparison(
+            comparison,
+            city=city,
+            city_label=fmt_city(city),
+            target=target,
+            target_label=fmt_target(target),
+            feature_set=feature_set,
+            selected_model=model,
+            model_labels=MODEL_LABELS,
+        )
 
 with tab_explain:
     st.markdown(local_explain(city, target, feature_set, model, df))
