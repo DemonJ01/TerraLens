@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from zipfile import is_zipfile
 
 import geopandas as gpd
 import requests
@@ -30,12 +31,21 @@ def load_config() -> dict:
 
 def download(url: str, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, stream=True, timeout=120) as r:
-        r.raise_for_status()
-        with open(out_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
+    partial = out_path.with_suffix(out_path.suffix + ".part")
+    try:
+        with requests.get(url, stream=True, timeout=120) as r:
+            r.raise_for_status()
+            with partial.open("wb") as f:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        if not is_zipfile(partial):
+            raise RuntimeError(
+                "Census returned an invalid TIGER archive. No tract cache was saved."
+            )
+        partial.replace(out_path)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def fetch_state_tracts(year: int, state_fips: str, cache_dir: Path) -> Path:
@@ -45,7 +55,7 @@ def fetch_state_tracts(year: int, state_fips: str, cache_dir: Path) -> Path:
     state_fips = str(state_fips).zfill(2)
     url = f"{TIGER_BASE}/TIGER{year}/TRACT/tl_{year}_{state_fips}_tract.zip"
     out_zip = cache_dir / f"tl_{year}_{state_fips}_tract.zip"
-    if out_zip.exists():
+    if out_zip.is_file() and is_zipfile(out_zip):
         return out_zip
 
     print(f"  Downloading: {url}")

@@ -26,7 +26,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.cache_predictions import RATE_TARGETS, TARGETS, load_dataset, select_features
+from scripts.cache_predictions import (  # noqa: E402 - script bootstrap
+    RATE_TARGETS,
+    TARGETS,
+    load_dataset,
+    select_features,
+)
 
 
 def score_predictions(truth: np.ndarray, predictions: np.ndarray) -> dict[str, float]:
@@ -217,7 +222,8 @@ def evaluate_model(
         "folds": folds,
         "limitations": [
             "Grid cells are held out intact; there is no geographic buffer between adjacent cells.",
-            "This tests spatial blocks within one prepared city, not transfer to a new city or date.",
+            "This tests spatial blocks within one prepared city, "
+            "not transfer to a new city or date.",
             "ACS monetary labels may be top-coded, and the ACS and OSM periods differ.",
         ],
     }

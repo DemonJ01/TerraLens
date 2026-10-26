@@ -2,11 +2,29 @@
 """Download public city inputs, build measured features, and cache held-out predictions."""
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def feature_cache_matches_tracts(features: Path, tracts: Path, root: Path) -> bool:
+    """Reuse measured features only for their recorded tract geometry input."""
+    if not features.is_file():
+        return False
+    try:
+        source = json.loads(features.with_suffix(".source.json").read_text())
+    except (OSError, ValueError):
+        return False
+    geometry = source.get("tract_geometry") if isinstance(source, dict) else None
+    if not isinstance(geometry, str) or not geometry.strip():
+        return False
+    recorded_tracts = Path(geometry)
+    if not recorded_tracts.is_absolute():
+        recorded_tracts = root / recorded_tracts
+    return recorded_tracts.resolve() == tracts.resolve()
 
 
 def preparation_steps(
@@ -17,8 +35,8 @@ def preparation_steps(
     osm = root / "data/raw/osm" / f"{city}.osm.pbf"
     tracts = census / f"{city}_tracts_{year}.gpkg"
     targets = census / f"{city}_targets_{year}.parquet"
+    needs_features = rebuild_features or not feature_cache_matches_tracts(features, tracts, root)
     if skip_downloads:
-        needs_features = rebuild_features or not features.is_file()
         required = [tracts, targets, *([osm] if needs_features else [])]
         missing = [str(path.relative_to(root)) for path in required if not path.is_file()]
         if missing:
@@ -28,7 +46,7 @@ def preparation_steps(
         steps.append(["fetch_census_tracts_multi.py", "--cities", city, "--year", str(year)])
     if not targets.is_file():
         steps.append(["download_acs_targets.py", "--city", city, "--year", str(year)])
-    if rebuild_features or not features.is_file():
+    if needs_features:
         if not osm.is_file():
             steps.append(["download_osm_extract.py", "--city", city])
         steps.append(
@@ -42,7 +60,7 @@ def preparation_steps(
                 str(tracts),
                 "--output",
                 str(features),
-                *(["--force"] if rebuild_features else []),
+                *(["--force"] if features.is_file() or rebuild_features else []),
             ]
         )
     steps.extend(

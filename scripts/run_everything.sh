@@ -34,33 +34,12 @@ for argument in "$@"; do
   fi
 done
 
-for city in nyc chicago san_francisco; do
-  if [[ ! -f "data/features/${city}_geo_features.parquet" ]] && ! command -v osmium >/dev/null; then
-    if ! "$TERRALENS_PYTHON" -c 'import pyogrio; assert "OSM" in pyogrio.list_drivers()'; then
-      echo "Install osmium-tool or Pyogrio with GDAL OSM support before running the pipeline." >&2
-      exit 1
-    fi
-  fi
-done
-
-if [[ "$SKIP_DOWNLOADS" == false ]]; then
-  "$TERRALENS_PYTHON" scripts/fetch_census_tracts_multi.py --cities nyc chicago san_francisco --year "$YEAR"
+PREPARATION_FLAGS=(--year "$YEAR" --models xgboost,extra_trees,hist_gb,ridge)
+if [[ "$SKIP_DOWNLOADS" == true ]]; then
+  PREPARATION_FLAGS+=(--skip-downloads)
 fi
 for city in nyc chicago san_francisco; do
-  if [[ "$SKIP_DOWNLOADS" == false ]]; then
-    "$TERRALENS_PYTHON" scripts/fetch_acs_targets.py --city "$city" --year "$YEAR"
-    if [[ ! -f "data/features/${city}_geo_features.parquet" ]]; then
-      "$TERRALENS_PYTHON" scripts/download_osm_extract.py --city "$city"
-    fi
-  fi
-  if [[ ! -f "data/features/${city}_geo_features.parquet" ]]; then
-    "$TERRALENS_PYTHON" scripts/compute_osm_features_from_pbf.py --city "$city" \
-      --pbf "data/raw/osm/${city}.osm.pbf" \
-      --tracts "data/raw/census/${city}_tracts_${YEAR}.gpkg" \
-      --output "data/features/${city}_geo_features.parquet"
-  fi
-  "$TERRALENS_PYTHON" scripts/build_dataset_multi_city.py --city "$city" --year "$YEAR" --output "data/processed/${city}_dataset.parquet"
-  "$TERRALENS_PYTHON" scripts/cache_predictions.py --city "$city" --feature_sets osm_only
+  "$TERRALENS_PYTHON" scripts/prepare_city.py --city "$city" "${PREPARATION_FLAGS[@]}"
 done
 
 if [[ -f data/processed/nyc_dataset_311.parquet ]]; then

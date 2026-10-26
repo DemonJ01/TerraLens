@@ -119,7 +119,8 @@ def render_model_comparison(
 ):
     st.markdown(f"**{city_label} · {target_label}**")
     st.caption(
-        f"All {len(comparison.scores)} models are scored on the same {comparison.common_n:,} test tracts. "
+        f"All {len(comparison.scores)} models are scored on "
+        f"the same {comparison.common_n:,} test tracts. "
         "The model selected above controls Map and Quick check. Choose two models below "
         "to inspect their predictions directly."
     )
@@ -172,10 +173,12 @@ def render_model_comparison(
     )
     if rate:
         st.caption(
-            "The table keeps rates on the 0–1 scale. Error charts use percentage points (0.01 = 1 pp)."
+            "The table keeps rates on the 0–1 scale. "
+            "Error charts use percentage points (0.01 = 1 pp)."
         )
     st.caption(
-        "Close scores can come from different predictions. The comparison below shows their actual differences."
+        "Close scores can come from different predictions. "
+        "The comparison below shows their actual differences."
     )
     if len(scores) < 2:
         st.info("At least two models are needed for a tract-by-tract comparison.")
@@ -217,7 +220,8 @@ def render_model_comparison(
     wins_a = int(((error_a < error_b) & ~ties).sum())
     wins_b = int(((error_b < error_a) & ~ties).sum())
     st.caption(
-        f"A has a smaller absolute error on {wins_a:,} tracts; B on {wins_b:,}; tied on {int(ties.sum()):,}."
+        f"A has a smaller absolute error on {wins_a:,} tracts; B on {wins_b:,}; "
+        f"tied on {int(ties.sum()):,}."
     )
     if not equal:
         st.altair_chart(
@@ -227,7 +231,8 @@ def render_model_comparison(
             width="stretch",
         )
         st.caption(
-            f"The {min(12, len(pair))} largest prediction gaps are shown. Positive means A predicts higher than B."
+            f"The {min(12, len(pair))} largest prediction gaps are shown. "
+            "Positive means A predicts higher than B."
         )
     with st.expander("Observed values and predictions for every compared tract"):
         display = pair[
@@ -252,10 +257,12 @@ def render_model_comparison(
             }
         )
         st.caption(
-            f"A: {model_labels.get(a, a)} · B: {model_labels.get(b, b)}. Values are in the target's original units."
+            f"A: {model_labels.get(a, a)} · B: {model_labels.get(b, b)}. "
+            "Values are in the target's original units."
         )
         st.caption(
-            "Observed values and tract locations stay the same across models; predictions and errors can differ."
+            "Observed values and tract locations stay the same across models; "
+            "predictions and errors can differ."
         )
         st.dataframe(display, hide_index=True, width="stretch")
         st.download_button(

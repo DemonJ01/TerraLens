@@ -246,7 +246,10 @@ def load_osm_polygons_gdal(pbf: Path, tracts: gpd.GeoDataFrame):
         layer="multipolygons",
         columns=columns,
         bbox=tuple(tracts.to_crs(4326).total_bounds),
-        where="building IS NOT NULL OR landuse IS NOT NULL OR natural IS NOT NULL OR leisure IS NOT NULL",
+        where=(
+            "building IS NOT NULL OR landuse IS NOT NULL "
+            "OR natural IS NOT NULL OR leisure IS NOT NULL"
+        ),
     )
     polygons = polygons.dropna(subset=["geometry"])
     print(f"Loaded {len(polygons):,} building/land-cover polygons.", flush=True)
@@ -549,18 +552,32 @@ def main() -> int:
             "building_landcover_polygons": len(polygons),
         },
         "definitions": {
-            "counts": "Tagged POI nodes and building representative points strictly within tract boundaries.",
-            "lengths": "Mapped highway geometry clipped to tract boundaries; meters in local UTM CRS.",
-            "areas": "Mapped building and per-category land-cover polygon unions clipped to tract boundaries.",
-            "zero_values": "No mapped object in the source extract, not proof of real-world absence.",
-            "land_cover": "Fixed categories may overlap across categories; each category is unioned before measuring.",
+            "counts": (
+                "Tagged POI nodes and building representative points "
+                "strictly within tract boundaries."
+            ),
+            "lengths": (
+                "Mapped highway geometry clipped to tract boundaries; meters in local UTM CRS."
+            ),
+            "areas": (
+                "Mapped building and per-category land-cover polygon unions "
+                "clipped to tract boundaries."
+            ),
+            "zero_values": (
+                "No mapped object in the source extract, not proof of real-world absence."
+            ),
+            "land_cover": (
+                "Fixed categories may overlap across categories; "
+                "each category is unioned before measuring."
+            ),
         },
     }
     out_path.with_suffix(".source.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     )
     print(
-        f"Wrote measured OSM features: {out_path} ({len(out):,} tracts, {len(out.columns)-1} features)",
+        f"Wrote measured OSM features: {out_path} "
+        f"({len(out):,} tracts, {len(out.columns) - 1} features)",
         flush=True,
     )
     return 0

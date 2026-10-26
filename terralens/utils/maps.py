@@ -10,9 +10,11 @@ from branca.element import MacroElement, Template
 from folium.plugins import HeatMap, MarkerCluster
 
 
-def _popup_value(value) -> str:
+def _popup_value(value, *, rate: bool = False) -> str:
     number = pd.to_numeric(value, errors="coerce")
-    return f"{number:,.2f}" if np.isfinite(number) else "Not available"
+    if not np.isfinite(number):
+        return "Not available"
+    return f"{number:,.6f}" if rate else f"{number:,.2f}"
 
 
 class _MapSizing(MacroElement):
@@ -145,11 +147,14 @@ def build_prediction_map(df: pd.DataFrame, value_col: str, mode: str, clip: bool
     else:
         markers = MarkerCluster().add_to(map_view) if mode == "Cluster" else map_view
         for _, row in d.iterrows():
+            rate = str(row.get("target", "")).endswith("_rate")
+            units = "<b>Units:</b> rate (0–1 scale)<br>" if rate else ""
             popup = (
                 f"<b>Area:</b> {escape(str(row.get('tract_id', '—')))}<br>"
-                f"<b>Data value:</b> {_popup_value(row.get('y_true', np.nan))}<br>"
-                f"<b>Estimate:</b> {_popup_value(row.get('y_pred', np.nan))}<br>"
-                f"<b>Error:</b> {_popup_value(row.get('error', np.nan))}"
+                f"{units}"
+                f"<b>Data value:</b> {_popup_value(row.get('y_true', np.nan), rate=rate)}<br>"
+                f"<b>Estimate:</b> {_popup_value(row.get('y_pred', np.nan), rate=rate)}<br>"
+                f"<b>Error:</b> {_popup_value(row.get('error', np.nan), rate=rate)}"
             )
             folium.CircleMarker(
                 [float(row["lat"]), float(row["lon"])],

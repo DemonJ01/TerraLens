@@ -113,6 +113,11 @@ def discover_predictions(root: Path = PROJECT_ROOT) -> pd.DataFrame:
             manifest = pd.read_csv(manifest_path)
             if set(MANIFEST_COLUMNS).issubset(manifest):
                 for row in manifest[MANIFEST_COLUMNS].dropna().to_dict("records"):
+                    if not all(
+                        isinstance(value, str) and value and value == value.strip()
+                        for value in row.values()
+                    ):
+                        continue
                     row["path"] = str(_resolve_path(str(row["path"]), root, pred_dir))
                     rows.append(row)
         except (OSError, ValueError, pd.errors.ParserError):
@@ -126,13 +131,30 @@ def discover_predictions(root: Path = PROJECT_ROOT) -> pd.DataFrame:
     checked = {}
     for row in rows:
         path = str(row["path"])
+        selection = [row[field] for field in MANIFEST_COLUMNS[:4]]
+        if not all(
+            isinstance(value, str) and value and value == value.strip() for value in selection
+        ):
+            continue
+        # Canonical filenames identify legacy artifacts without embedded labels.
+        # A stale manifest must never relabel one city's data as another city's.
+        filename_selection = Path(path).stem.split("__", 3)
+        if len(filename_selection) == 4 and filename_selection != selection:
+            continue
         if path not in checked:
             try:
-                checked[path] = not load_predictions(path).empty
+                checked[path] = load_predictions(path)
             except (OSError, ValueError, KeyError):
-                checked[path] = False
-        if checked[path]:
-            valid_rows.append(row)
+                checked[path] = None
+        predictions = checked[path]
+        if predictions is None or predictions.empty:
+            continue
+        if any(
+            field in predictions and not predictions[field].eq(row[field]).all()
+            for field in MANIFEST_COLUMNS[:4]
+        ):
+            continue
+        valid_rows.append(row)
     if not valid_rows:
         return create_sample_predictions(root)
     manifest = pd.DataFrame(valid_rows).drop_duplicates(MANIFEST_COLUMNS[:4], keep="first")

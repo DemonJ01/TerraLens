@@ -39,8 +39,7 @@ outputs/**
 .idea/
 .DS_Store
 
-# Testing
-/tests/
+# Test outputs (the automated test sources are versioned)
 /scripts/build_dataset.py
 /.local/
 .pytest_cache/

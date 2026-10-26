@@ -301,12 +301,17 @@ st.markdown(
     <div class="metric-label">RMSE</div><div class="metric-value">{rmse_display}</div>
   </div>
   <div class="metric-card">
-    <div class="metric-label">Tracts</div><div class="metric-value">{met['n']:,}</div>
+    <div class="metric-label">Tracts</div><div class="metric-value">{len(df):,}</div>
   </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
+if met["n"] < len(df):
+    st.caption(
+        f"{len(df):,} tracts have predictions; "
+        f"{met['n']:,} have observed values for accuracy scores."
+    )
 download_csv_button(
     df, f"{city}_{model}_{feature_set}_{target}.csv", label="⬇️ Download current view (CSV)"
 )
@@ -323,7 +328,7 @@ with tab_map:
     else:
         value_col = "y_true"
 
-    dmap = df.copy()
+    dmap = df.assign(target=target)
     if value_col not in dmap.columns:
         st.error(f"Missing column: {value_col}")
     else:
@@ -396,7 +401,8 @@ with tab_diag:
                     reduction = 1 - (met["rmse"] / baseline_scores["rmse"]) ** 2
                     if reduction > 0:
                         st.write(
-                            f"This model has **{reduction:.1%} lower squared error** than the baseline."
+                            f"This model has **{reduction:.1%} lower squared error** "
+                            "than the baseline."
                         )
                     else:
                         st.warning(

@@ -1,11 +1,12 @@
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(wildcard venv/bin/python),venv/bin/python,python3))
 
-.PHONY: help install run format lint clean data-check
+.PHONY: help install run test format lint clean data-check
 
 help:
 	@echo "TerraLens commands"
 	@echo "  make install     Install the project and development tools"
 	@echo "  make run         Open the dashboard on localhost:8501"
+	@echo "  make test        Run the automated checks without downloading city data"
 	@echo "  make data-check  Check whether real NYC source data is available"
 	@echo "  make format      Format Python sources"
 	@echo "  make lint        Check Python sources"
@@ -16,6 +17,9 @@ install:
 
 run:
 	$(PYTHON) -m streamlit run app.py
+
+test:
+	$(PYTHON) -m pytest -q
 
 format:
 	$(PYTHON) -m isort app.py terralens/ scripts/ experiments/ --profile black

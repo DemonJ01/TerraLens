@@ -48,6 +48,30 @@ def fit_predict(X_train, y_train, X_test, model):
     return model.predict(X_test)
 
 
+def align_ablation_datasets(df_osm, df_311):
+    """Compare feature sets on the same ordered, observed census tracts."""
+    frames = []
+    for frame in (df_osm, df_311):
+        if "tract_id" not in frame:
+            raise ValueError("NYC ablation requires tract_id in both datasets")
+        frame = frame.copy()
+        if frame["tract_id"].isna().any():
+            raise ValueError("NYC ablation requires non-null tract IDs")
+        frame["tract_id"] = frame["tract_id"].astype(str)
+        if frame["tract_id"].duplicated().any():
+            raise ValueError("NYC ablation requires unique tract IDs")
+        income = pd.to_numeric(frame["median_income"], errors="coerce")
+        frame["median_income"] = income
+        frames.append(frame.loc[np.isfinite(income) & (income >= 0)].set_index("tract_id"))
+    common = frames[0].index.intersection(frames[1].index, sort=False)
+    if len(common) < 2:
+        raise ValueError("NYC ablation requires at least two shared observed tracts")
+    left, right = [frame.loc[common].copy() for frame in frames]
+    if not np.allclose(left["median_income"], right["median_income"], rtol=0, atol=1e-8):
+        raise ValueError("NYC ablation datasets contain conflicting observed income values")
+    return left.reset_index(), right.reset_index()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=42)
@@ -57,6 +81,8 @@ def main():
     df_osm = pd.read_parquet("data/processed/nyc_dataset.parquet")
     enriched_path = Path("data/processed/nyc_dataset_311.parquet")
     df_311 = pd.read_parquet(enriched_path) if enriched_path.exists() else None
+    if df_311 is not None:
+        df_osm, df_311 = align_ablation_datasets(df_osm, df_311)
 
     configs = [
         ("osm_only", ["poi_", "road_"]),
