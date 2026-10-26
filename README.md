@@ -121,8 +121,7 @@ make test
 The tests cover dashboard loading and controls, matched model comparisons, training/test
 separation, geographic validation, data preparation, and map exports. They use small synthetic
 fixtures and mocked downloads, so no API key or city-data download is required. Two optional
-checks of historical map exports skip when those local files are absent. GitHub Actions runs
-lint and tests on Python 3.10 and 3.12 for pushes and pull requests.
+checks of historical map exports skip when those local files are absent.
 
 ## Data and license
 
