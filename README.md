@@ -4,6 +4,80 @@ TerraLens explores neighborhood estimates from open city data. The dashboard inc
 
 **Compare** ranks all available models for the chosen city and target, with precise R², MAE, and RMSE values. Choose **Model A** and **Model B** to inspect their actual prediction gaps on matching tracts and download the paired values. Similar overall scores can come from different tract-level estimates. The sidebar model controls Map and Quick check; the comparison includes all models for that city and target. Models are compared only on shared observed tracts, and conflicting observed values or tract identities are rejected.
 
+## Portfolio case study — three regions, one question
+
+> **Status of the figures:** The following tables reproduce results reported in Saatvik Rai's *Selected Works* architectural-computation portfolio (TerraLens spread, internally numbered pages 24–25). They are **portfolio-reported experiment results**, not synthetic demo scores. The public GitHub repository contains the code to run the experiments, but deliberately excludes local source datasets, generated prediction files, figures and metric sidecars. Accordingly, the exact published values have **not** been independently reproduced from publicly committed experiment artifacts.
+
+**Research question.** Where does a neighbourhood-level income model make errors, and does a good random-holdout score survive when whole geographic blocks are left out? TerraLens connects geographic feature preparation, tract-level regression, geographically explicit residual maps and separate model validation.
+
+### Portfolio maps
+
+The portfolio presents three separately scaled tract maps of **XGBoost residuals** (predicted minus observed median household income, USD). **Blue indicates underestimation; red indicates overestimation.** Displayed colour magnitude is capped at **$50,000**; pale tracts provide geographic context. These are **static portfolio illustrations**, not live map widgets or a claim that the map files are committed to this repository.
+
+**[View the original three-city map spread in the portfolio](https://issuu.com/saatvikrai/docs/saatvik_rai_portfolio)** · **[Explore the author's selected-work website](https://saatvik-rai-selected-work.vercel.app/#terralens)**
+
+| Region | Valid observed tracts reported | Random held-out tracts reported | Evaluation |
+| --- | ---: | ---: | --- |
+| New York City (five boroughs) | 2,196 | 440 | ~20% random test split |
+| Chicago / Cook County | 1,317 | 264 | ~20% random test split |
+| San Francisco | 234 | 47 | ~20% random test split |
+
+The counts refer to the portfolio's median-household-income experiment; they are not fixed dataset sizes for all targets or runs. Code in `scripts/cache_predictions.py` implements the 20% held-out test; counts above are taken from the portfolio and have not been reproduced from the local data.
+
+### All reported model results
+
+The next three tables transcribe **all twelve model results** in the 19-spread portfolio. `R²` can be negative, especially in geographic holdout tests. **MAE is in US dollars**, not a percentage. Higher R² and lower MAE indicate better performance *within a given evaluation setup*.
+
+**New York City — median household income**
+
+| Model | Random holdout R² | Random holdout MAE (USD) | Spatial R² |
+| --- | ---: | ---: | ---: |
+| Ridge | **0.621** | **17,698** | 0.014 |
+| Extra Trees | 0.524 | 18,581 | 0.232 |
+| Histogram Gradient Boosting | 0.583 | 18,037 | 0.291 |
+| XGBoost | 0.577 | 17,963 | **0.326** |
+
+**Chicago / Cook County — median household income**
+
+| Model | Random holdout R² | Random holdout MAE (USD) | Spatial R² |
+| --- | ---: | ---: | ---: |
+| Ridge | **0.692** | **16,238** | 0.047 |
+| Extra Trees | 0.621 | 18,440 | **0.141** |
+| Histogram Gradient Boosting | 0.645 | 17,738 | −0.054 |
+| XGBoost | 0.653 | 17,745 | 0.055 |
+
+**San Francisco — median household income**
+
+| Model | Random holdout R² | Random holdout MAE (USD) | Spatial R² |
+| --- | ---: | ---: | ---: |
+| Ridge | 0.373 | 33,729 | −0.017 |
+| Extra Trees | **0.384** | **33,111** | 0.059 |
+| Histogram Gradient Boosting | 0.338 | 34,763 | −0.038 |
+| XGBoost | 0.359 | 34,624 | **0.061** |
+
+**Compare the two validation regimes visually:**
+
+![Portfolio-reported random versus geographical-block validation R-squared across three regions](figures/portfolio_model_comparison.svg)
+
+The random-holdout and spatial figures are **not two scores on the same test rows**. Random holdout randomly reserves individual tracts; nested spatial validation holds out whole geographical blocks. Both are implemented in this repository but answer different questions. For example, Ridge's Chicago random R² of 0.692 contrasts with spatial R² of 0.047. This gap motivates the map-first error analysis rather than claiming generalisation from the random test alone.
+
+### Reproducing the work and checking the numbers
+
+The implementation uses ACS 2017–2021 five-year estimates with OpenStreetMap features from the extract's download time. The portfolio describes its OSM inputs as **October 2026**, but the raw-file download timestamp is not independently available in this repository. These source periods differ, so results are **retrospective comparisons, not forecasts**. They apply to census tracts, not individual residents.
+
+To generate your own matching city experiments, follow the three-city setup below. When prerequisites are available, run:
+
+```bash
+bash scripts/run_everything.sh 2021
+.venv/bin/python scripts/validate_models.py --city nyc --models ridge,extra_trees,hist_gb,xgboost --targets median_income --n-jobs 2
+.venv/bin/python scripts/validate_models.py --city chicago --models ridge,extra_trees,hist_gb,xgboost --targets median_income --n-jobs 2
+.venv/bin/python scripts/validate_models.py --city san_francisco --models ridge,extra_trees,hist_gb,xgboost --targets median_income --n-jobs 2
+```
+
+Check `outputs/preds/manifest.csv`, each matching `*.metrics.json` sidecar and the outputs in `outputs/spatial_validation/` before reporting scores. Recorded dataset and prediction SHA-256 hashes, tract identifiers, fitted settings, and package versions support auditability. **Matching the same numerical results requires the original source snapshots, preprocessing and environment**; later OSM downloads may change the inputs. The static portfolio result tables should not be represented as freshly re-run validation without those artifacts.
+
+---
+
 ## Run the dashboard
 
 Open a terminal in this project folder and run:
