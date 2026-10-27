@@ -1,0 +1,818 @@
+{
+  "generator": "scripts/make_readme_figures.py",
+  "data_sources": {
+    "nyc": {
+      "acs_year": 2021,
+      "acs_period": "2017\u20132021",
+      "osm_source": {
+        "url": "https://download.bbbike.org/osm/bbbike/NewYork/NewYork.osm.pbf",
+        "city": "nyc",
+        "license": "ODbL-1.0",
+        "retrieved_on": "2026-10-24",
+        "date_timezone": "Asia/Kolkata",
+        "bytes": 153267016
+      }
+    },
+    "chicago": {
+      "acs_year": 2021,
+      "acs_period": "2017\u20132021",
+      "osm_source": {
+        "url": "https://download.geofabrik.de/north-america/us/illinois-latest.osm.pbf",
+        "city": "chicago",
+        "license": "ODbL-1.0",
+        "retrieved_at": "2026-10-25T05:37:41.842369+00:00",
+        "bytes": 362375376
+      }
+    },
+    "san_francisco": {
+      "acs_year": 2021,
+      "acs_period": "2017\u20132021",
+      "osm_source": {
+        "url": "https://download.bbbike.org/osm/bbbike/SanFrancisco/SanFrancisco.osm.pbf",
+        "city": "san_francisco",
+        "license": "ODbL-1.0",
+        "retrieved_at": "2026-10-25T05:34:59.631131+00:00",
+        "bytes": 33017447,
+        "coverage": {
+          "polygon_url": "https://download.bbbike.org/osm/bbbike/SanFrancisco/SanFrancisco.poly",
+          "modeled_tracts": 234,
+          "fully_covered_modeled_tracts": 234,
+          "acs_year": 2021
+        }
+      }
+    }
+  },
+  "evaluation": "Maps and model scores: random 20% holdout. Spatial scores: nested block CV.",
+  "rates": "MAE, RMSE and residuals exported in percentage points; source fractions \u00d7 100.",
+  "maps": "Context: prepared dataset tracts. Individually scaled; SF mainland view.",
+  "sources": [
+    {
+      "path": "data/processed/nyc_dataset.parquet",
+      "sha256": "2175fccdfa65b3585e2b65369830f71cb0a0dd5c6bad0211f42ebba33b87eb29"
+    },
+    {
+      "path": "data/processed/nyc_dataset.source.json",
+      "sha256": "573cdea9a0043dcc1157403b62bbab1a2b9202d92d41d1c1b62db3d75da139f3"
+    },
+    {
+      "path": "data/raw/census/nyc_tracts_2021.gpkg",
+      "sha256": "a8b37e88ac038e6b1c52ef19cb2e94cf326bed75ddbac897d6b6ce2a564af03c"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__median_income.parquet",
+      "sha256": "3ebcd9a18e707aaae84bd8135072edd0401f11db088fea9599c735e91a5610b5",
+      "metadata_sha256": "db5419cbe218c2a9b004b05cd4ff7dc0f3aade950faed0750da5b7313da36546"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__median_income.spatial.json",
+      "sha256": "b8ac0bb660a93d8540b588880aedd9547e73c47d7f2d6aafaff46726a7653706",
+      "prediction_sha256": "65684c1a64303b49a06a90f2904b2a7a23d8e4338eb5e7faaa06f9d0c8a020b7"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__median_income.parquet",
+      "sha256": "763b341eae0d5fb4878ed2b08d926f47d3403de6ae4b5b55fa112aee32600b4a",
+      "metadata_sha256": "9c740f3343ffa6728101a77f4c7669db665be1cbb9df352ee8242385d3f48f6e"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__median_income.spatial.json",
+      "sha256": "c55e3d8da0563415b7230139569f004976dd85a154ad8b168eb1bf0a3b45c7df",
+      "prediction_sha256": "ece5441041018e97d73a6e9ba857abb8ab0fd4ee9dd66fb6397a500fad60d316"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__median_income.parquet",
+      "sha256": "79668e01bc02fb5bdfd11177178731600fd16f6cee658887c62b03071381a540",
+      "metadata_sha256": "077c1334193f72468a0291f90573461bc4b279f965004111ebcc13e09f0b0494"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__median_income.spatial.json",
+      "sha256": "2f7ac1fe4821bcf4d33661184e61901be19714575e9469e1c57e4a099f7a2f8a",
+      "prediction_sha256": "07605e273c2f93c31be96e2bebad4a0dff30edc97167c57308a9af56901b94a9"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__median_income.parquet",
+      "sha256": "6aaff3bc8a1333180b54d277e977d65a216153c302a6f35ca686ca59e1d2a4e1",
+      "metadata_sha256": "8edf76aa4db16fa91f25605e5c58e58667201bf494687f4cef42d628b78564a6"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__median_income.spatial.json",
+      "sha256": "b30b28f9c8aa7910c2b0edf3399db202c845564fd3759aeff466febd3e35b54d",
+      "prediction_sha256": "ff6b8ebba3d1837f03a1b1d5b8ec874a60710549642f659aca9e87b229c98a3d"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__median_rent.parquet",
+      "sha256": "3e4378a8b9df3585b3cf0d968507d8fe7db3f03115e7227cee74d8c2cecba869",
+      "metadata_sha256": "899071dc499329385cac266eb4a927e44271d5da3442dff6675671ea1a8de705"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__median_rent.spatial.json",
+      "sha256": "2b8d2b57086b248052af1bca759db7ead99b420df4a0794b186698252c98dd4f",
+      "prediction_sha256": "54c574195dc9d42af69aa8469bf0412f82aed2115ca1f888a761fe79dc0854a6"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__median_rent.parquet",
+      "sha256": "0ec1294d33aaf8f450cb1a8041db4757adb26f520caecb2ed5b17b97c8b6da1b",
+      "metadata_sha256": "32c2c024c67b4a7dd698410dc20c891c239220c0b9c196b0bc9add9afdaf31a9"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__median_rent.spatial.json",
+      "sha256": "707192e5bd9cd23c10fe2225bb158745a25a66a1232b12a2cf59729a06a9250e",
+      "prediction_sha256": "1462f600f772dcfe99c2c6ba0fefcf50180a24220d53e2adeba48cb787eee804"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__median_rent.parquet",
+      "sha256": "03abf68bede0d257ab3d20e3c419e184a1c8e1394b608e7d5057dd43998b22ad",
+      "metadata_sha256": "01726bff2a43c9a3899b4a3783147518bf8f57db2a168ca1d6af633562fb1300"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__median_rent.spatial.json",
+      "sha256": "dd0e406719e6fb414b78780bca647902d58888ef92abe38d5fdf4b44cc8ba7d9",
+      "prediction_sha256": "43e7abfd23daf72a84666f51ef87ae52940b8009e44962d5c992a120647ed074"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__median_rent.parquet",
+      "sha256": "7ef284b697248e2657688d3a73e5444b17f4de8f4316cf9a4719c4bda0e4dc07",
+      "metadata_sha256": "728f9063b5cd47728c72efd93f13d4461a6ec07ef0886cf1ea5753a89eb55454"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__median_rent.spatial.json",
+      "sha256": "42e458539d0f45d9cbba6a24d3c835bc691f5b4d842a785a2c667d584ad2eb8b",
+      "prediction_sha256": "633b21520c85149ce6e9e554c73682481f0da52cbd92637966aa30346bb25c02"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__median_home_value.parquet",
+      "sha256": "c8eb665ded77dd67bb26d725352605395797d405250a31228264e5cc5534d132",
+      "metadata_sha256": "6f66bbad945380fabab0b7496972dfbb48874376607631aed579cba8621c5ffb"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__median_home_value.spatial.json",
+      "sha256": "b8ccf81ab803c627c496288d112adec8e39016e345665ea3bc39dc838b62bb89",
+      "prediction_sha256": "0cc61f5c61557b24c31d5f8fc792422d4603f5a99c31f1f7aa7dfb8acb4a97c1"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__median_home_value.parquet",
+      "sha256": "a801055bb9c6c0c9079385179d328347811f6ded4345112d36130463a9ab1dd6",
+      "metadata_sha256": "0adad793cb88d2c31593f4b92e62d08b5e2ba5ef159f685a1fbe35ba304d301e"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__median_home_value.spatial.json",
+      "sha256": "1994241348b0da02ecded9e09464c0b9b72afb4a9537e37797d2c60cc46d8ace",
+      "prediction_sha256": "4ed20e8f57eb03efb3fe438c62a280f7828f4a31677d4f331f502f623519d13d"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__median_home_value.parquet",
+      "sha256": "7027907e7b1c0ca3b4dfe4f053662dd511b5152b6d69d2e909cebaeac0266b7f",
+      "metadata_sha256": "45deddaae10a258bdc369958118a0b520266e7cb353c4c4f4b837a25fd51f7a9"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__median_home_value.spatial.json",
+      "sha256": "9b82490bee4a9cc23b292ac282dc2701a5b2856ecf3a0ce4249c9db7ae6daa92",
+      "prediction_sha256": "6404b12a16736d96cdb51ab11d65b08b9ab1a461a54c8617fa7a491b9b949519"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__median_home_value.parquet",
+      "sha256": "b6ce00f56655e79659c6a6624254cc51f91addd80d0907bc9fef8ca3485c4fa3",
+      "metadata_sha256": "36be4811f2a47b91d65cbca39f320547749e7463026dd532f8c0d275d7e27e9c"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__median_home_value.spatial.json",
+      "sha256": "6829db9235998e3fec3c36d56eb5b4215fe659a455cd1f3ced4ae98b45ae430a",
+      "prediction_sha256": "51f00c3bd642f5678da642dc8cae2aa1a9661754139cd196c3e792623d39ba81"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__poverty_rate.parquet",
+      "sha256": "7ac5ce32cd624dd03f5e51034d11fcdc1ffd816882d9c825edd49d18610e0e8e",
+      "metadata_sha256": "ad9a75a030a66a78089562479e4678282fc9f6d8e3139a4fc56fe543356d91aa"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__poverty_rate.spatial.json",
+      "sha256": "b82fb8a8953ec01b2a9ff3ae37a14205618814e8e2bf25ad1c891be36574a6dc",
+      "prediction_sha256": "19fbb5295928077aeff8fbe917d9886cf13f4c496b417c50466513498c06a0e8"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__poverty_rate.parquet",
+      "sha256": "76b3e00c98f4e1b7df26a62e28d5790cb62769c37b1b30468ffe16727d0ae7d7",
+      "metadata_sha256": "037a825a186c99831e401068f39d48b1a09711095c6ac40503d371a26ed3249a"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__poverty_rate.spatial.json",
+      "sha256": "dfa3419462c6e22d254926b286986da4daf3b99a574bf6f587764093b8bde8d4",
+      "prediction_sha256": "736c42b3e2d53406bfd8b71163cd9ff8117d397658f5b7054370ebb329a78fa3"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__poverty_rate.parquet",
+      "sha256": "c3635239e0f6b58cb8e7f7b2cbe314ddd054243285d09015a1d20f8431e40f2c",
+      "metadata_sha256": "8c1be7202f4bada580f1e9505e6090b8ded93f1cf0e2b96a8858d1b3b5b9666c"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__poverty_rate.spatial.json",
+      "sha256": "6d982170ba21f78d99f0c222d4e4500de3886f1ee520b5655569684b27cd2c21",
+      "prediction_sha256": "e867c6b31fa6c55c19be92eb902c4c6e86101a62687c50e50d32bb974353c27a"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__poverty_rate.parquet",
+      "sha256": "0f1918680c61e9298922217c49b8569ea1e9e2cca1381e1b68ce53e3c02d7088",
+      "metadata_sha256": "905a314f133052c106a684ed7e448233c23803c0670986692c056bec3477d625"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__poverty_rate.spatial.json",
+      "sha256": "ccb945ef6109a493f12e6c437cee6842fdb140d2657f2cd0afb3787e374e815d",
+      "prediction_sha256": "ddef0cba30a1eb31654b659b3105297c1fb49e5a7ed6cfabb748fdcdc9037916"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__unemployment_rate.parquet",
+      "sha256": "10de5d4593af9a6d3e885ea78c57185cf7e8fd5a14aefd8fd833e0cd9304bcdd",
+      "metadata_sha256": "4465087330c168bc98c8c5b914b15729f83ad2c27911037238c69bde01b19e7b"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__unemployment_rate.spatial.json",
+      "sha256": "3bd71e5c20354e09d575d82e4d619144e578a30c034bca9bc2f896111a5df440",
+      "prediction_sha256": "2c01be98afa7789edcfdd453c52ef811e4de4ff230fa50886f1631b358a8cac6"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__unemployment_rate.parquet",
+      "sha256": "999b1ae32fe9f472f26f8186c4078bb2962b11d96ce1bb5d791ff4290ceaf12f",
+      "metadata_sha256": "84db4fd1cfc29726b07ff7f2b6cabb50a5f6d946d4ca076f906ca8dc836aea00"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__unemployment_rate.spatial.json",
+      "sha256": "20bbfe65020c0d4a35f12c82aa462632629af5ff56b3ec0840e550d946cde3b7",
+      "prediction_sha256": "919a94f76160ed2de2a7a6f68bc5e4158d45180afd10e51facc942f55c7d75cf"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__unemployment_rate.parquet",
+      "sha256": "1f275915ed1526866811a6df8241851c11e258127e18bd41bc6a726da1a0a6f6",
+      "metadata_sha256": "c56ef946d64bda3409c887e8475c0f1a5ac1a550b1c8b12afbf931421cdedc2e"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__unemployment_rate.spatial.json",
+      "sha256": "84115d9d445a35a51a4d37ed136d4402f39c069cbb51bae0da01f6045b53b63c",
+      "prediction_sha256": "a588f0debd7eee106cd09c6fd2ff6241d03f5d76d0222feddfb4f85b4e8b6a94"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__unemployment_rate.parquet",
+      "sha256": "a3bf9d5c5979aae139ce1360137a23a565f8fa828f50b37feaf0da5e4f95be1a",
+      "metadata_sha256": "0e93e4d3d2cd3ce85f67c0c93bf9d1a663b99b6af50557e419290eac0b02bd8a"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__unemployment_rate.spatial.json",
+      "sha256": "7bc67c98a1696bb19162d91496f8b694061e2e846220dcc2a0de68bad9eff70f",
+      "prediction_sha256": "32295c5f403109147f4b3c31328f74ba827e5bae218bef362bf4274d1e84342a"
+    },
+    {
+      "path": "outputs/preds/nyc__ridge__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "7f5942d26ead1742c1d2db590f65cadbb1cb268070029ddb2f95c72a8989f3f5",
+      "metadata_sha256": "1e3f60f73c1a6d65706fbce5f258b263a526aedf6dcab158ad30fc9f2283c38a"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__ridge__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "bdab95de6d24ff620e0a729ec4a94516a2c1ff0634273350e21ce8477195b9fa",
+      "prediction_sha256": "f6d259b7db3bd3aefdf86588bd434f4e46d5a46edd8df9b1ab37c6d662ba0faf"
+    },
+    {
+      "path": "outputs/preds/nyc__extra_trees__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "991c59eb54239e8d3eb282e775ba65df69c9671114f80661e551aee5af98f37b",
+      "metadata_sha256": "b776b51e001f7af0791dab1839e3c38cafc9e74ee0fde9639b62c1c7c075480c"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__extra_trees__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "e2f2857f091016f5c211d9b32977eb971519fce0e2beb66ea655569d2a5364ab",
+      "prediction_sha256": "817d9a06ef3ea0e0651969b7ee28d50b33e5a0f30107a49b0e29bdac0f4ee6b0"
+    },
+    {
+      "path": "outputs/preds/nyc__hist_gb__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "fbeb9243ca25a9c85ec32ac85cf2ddfa49ff08ace6c515adcd4bc7790b4fec8c",
+      "metadata_sha256": "f099c2a40e88598f4677e41a19269ec78f1795c48a0545d7a536c0f7a2ac74da"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__hist_gb__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "23ef11979c51d5af56539f023c10583a36d0aea39a364821b8ec09907399bdb1",
+      "prediction_sha256": "5a7c2469337a990318c1436d80bbd8c2df887bf4ca455e77d7e0db7698989064"
+    },
+    {
+      "path": "outputs/preds/nyc__xgboost__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "d24acdf025c729b585d813c089bc2fa1324dc50a70ca683e2f6c92122747ba84",
+      "metadata_sha256": "2148078206ddd57bc03c30fb31575fe40a26bbedf94fbfca4d4a94c52aa88c83"
+    },
+    {
+      "path": "outputs/spatial_validation/nyc__xgboost__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "6abb2812f5520f907965c7aec06faee42955de59b9f31fa30b3eb270d7043647",
+      "prediction_sha256": "bcae3801cc13d99960a4a22100c03140aaacf0a62e0d86b1a8d04b8d4e30b6ea"
+    },
+    {
+      "path": "data/processed/chicago_dataset.parquet",
+      "sha256": "50fcc326cad955de30af876ee15839ad9bce36e5acd1e340105385041aad6d7e"
+    },
+    {
+      "path": "data/processed/chicago_dataset.source.json",
+      "sha256": "f209a5c3e3ae7415237c0da17bce778d025e317def28091f6c94fa569018deac"
+    },
+    {
+      "path": "data/raw/census/chicago_tracts_2021.gpkg",
+      "sha256": "c4062edbf463e6deaac871bb9920e9e66f55a32029a6fe3445b71455acac1a51"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__median_income.parquet",
+      "sha256": "5cb9dc5ba65db2f8a2f228e153020dc446627d800d1cca004f995d457c28bf10",
+      "metadata_sha256": "5478f70435f7a8fa7b876336733c0a340ef108ef97a99ab2b3ffaf8642aba5ea"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__median_income.spatial.json",
+      "sha256": "5c680d0b031d3fe9e6b0244d7854ce79955466c3841656a63015226e1801fafa",
+      "prediction_sha256": "95d7ba76ba3821e42ec643130ce90bc79e07ef1a9e23c034f13cc27b09f411c8"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__median_income.parquet",
+      "sha256": "c308ba22f5759eb40b47dd2df8883109e666eb527c4df84b357103d495bf3311",
+      "metadata_sha256": "48888ef6984c24c578ce91edd09ced37844596b3a211b50d8bc32d5dc90bfae4"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__median_income.spatial.json",
+      "sha256": "6642b423ef652cf4c9ad373b83c9dee9200b5d300117630f2b127a9e4b62b7be",
+      "prediction_sha256": "c8db0cebf6523328274b7badfa8dd48ac94fa423928895a2a32a000ef18b738a"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__median_income.parquet",
+      "sha256": "6317a59d3c2450640ee347968efd306650035d31307f095e437af375e55d7cf0",
+      "metadata_sha256": "c8a33e108b13c55cdfa4f8cea98027fa3cccbc08458de34112c8df960358a503"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__median_income.spatial.json",
+      "sha256": "3a581b33a317e775964338d7d039367437fe95354990a0739953c90db7f4839d",
+      "prediction_sha256": "7e02cb00449e6e63b9e184f0d19c5a74a02bc00266b8e76a1d812bdbf4445621"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__median_income.parquet",
+      "sha256": "cdab0952c235bf58f490bec23ee6f94d09158851e5020bab29602b96ef5c73e6",
+      "metadata_sha256": "27a2e99abee11dced90fdcf72114eb78d9d5273276930e5bb9c795689194360e"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__median_income.spatial.json",
+      "sha256": "e76eeebf25102e65b9128e2c4cca117537e508b93bb19a16ee066b1715303827",
+      "prediction_sha256": "7f0fb090c285dc1d54a3cdad4d8b317fe13016dd2c61d5e718ab700b9840bd1a"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__median_rent.parquet",
+      "sha256": "1751a1f5af30d8ba1a0428ac29919344b787f310c6c10fb7d943c12ae8bee614",
+      "metadata_sha256": "a6a03d681fdc9c995b556265a8297007ae16fa1eb2b50003b8dac4b8275118e1"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__median_rent.spatial.json",
+      "sha256": "d94aee107f6d08265e6b0394ff5d64f525c40474bacb1e48c98a07cb171b65d3",
+      "prediction_sha256": "27ee20971632e65df8df80d09bbb3adefab20b677960999d71e33fdea1283b28"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__median_rent.parquet",
+      "sha256": "a477a7c431fb66c71acd8aab5938ad2b319521e08aab1aaf9ec20587c5dccedd",
+      "metadata_sha256": "6b4ff993619a532912ae48bf1c3c49590a256bf8ab6dbfaf17bfcf068663c510"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__median_rent.spatial.json",
+      "sha256": "71656bc9918ceaa0e06b2719c38606c5bf93b78609086cb38cb4dbd395ad153f",
+      "prediction_sha256": "b71006200c67e44e096930aa5d2d815db142de50854fb5f16d938767191661cb"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__median_rent.parquet",
+      "sha256": "bf559f39fe5bd71707a1cf32df437888d3325cc53af46a32337f3f9a663602f0",
+      "metadata_sha256": "75bfd43ed9d14ea554d0f7c612ef98392e352541db38c07732ad2a4539c88f7e"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__median_rent.spatial.json",
+      "sha256": "8609d3f8538d3f1201bf4d5ed11d585bfd5dca218b4cbabf44f7f6438bbad616",
+      "prediction_sha256": "05f66421c3bd39d5cd62ada615ee480b7dbd619fa4a7e0952189946943b05993"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__median_rent.parquet",
+      "sha256": "cfb32f696bcfcf79fa1617604845d3395bb9f771f5d97733a5beb28df20f2c4a",
+      "metadata_sha256": "7f738e09110024ea645e1bf9abee0ac8b9606a9a85cff66edff2dc4c4cfcc3c9"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__median_rent.spatial.json",
+      "sha256": "35f93055e7fcee871b33949776da72797e50ac9933d6f380492e0f249a5925fd",
+      "prediction_sha256": "9fe1ac8ccc15a110c1ca42f3795eef20d67f3222a6acb2e98b7d954a224de383"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__median_home_value.parquet",
+      "sha256": "9f7ccee385097c715319e833816ca81d607fd2682ab4a0cc26b11efa17567adb",
+      "metadata_sha256": "1d23e852d7554bed0384bf5d3b57b8e9a9bf0f3fdc8d6c167d4d15fa31e7e050"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__median_home_value.spatial.json",
+      "sha256": "0386a868c15c5ade8a3b7ea5dbf1da073a31d8bbcbe9ba1ec91c9d3937ab67ac",
+      "prediction_sha256": "ddda4e4359fbe1c2d32b3988fac2fb41a5daa35f406d5c5dbead85297db078a0"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__median_home_value.parquet",
+      "sha256": "4649c6e045dbb704a9ecd5fd78d732b87106248175d227a6247c9ac24944d083",
+      "metadata_sha256": "d197c97ff6237f52563ce3dc76263aea8da3ba712d50f09aeae4bba4a4cdb4f8"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__median_home_value.spatial.json",
+      "sha256": "90dac608f6cf0123fdaa390433e23885ab7e1a80491f6788bc73b96e9452f9ed",
+      "prediction_sha256": "0db0b6c3d388fa6ef202901cc3034b7955db119099dc96970ad253a0770d9263"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__median_home_value.parquet",
+      "sha256": "cd4512f989c5686642fa5755aecde17eca92919ae224c5d791397129eeec9c17",
+      "metadata_sha256": "80911e2e52ea1f4156fded739a86aaf4d1dee499c0966e5699180af58b1ca216"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__median_home_value.spatial.json",
+      "sha256": "f8b6a8fe2d0609faafa490eda15d3c5a6beb31934c0c4db8988e09162432cfb8",
+      "prediction_sha256": "49729eaa833aeb0928cde10c86006ad9cc172abf64ee6375351d4c9bc1f614a3"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__median_home_value.parquet",
+      "sha256": "c9276d05090ca7d1582c8298ff654a394341e666a1910320d884fe819fadf21b",
+      "metadata_sha256": "8f1d263f7543f68c38afbccd6a4cda99ea8f160275e52fecb2fbfd084baa8f7a"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__median_home_value.spatial.json",
+      "sha256": "f47c569dd908efb584835943164a15f76f047b9ab9603479097467fc02fa5078",
+      "prediction_sha256": "49516a69ea8325eeda146e72b2188dbd7cde701a79fb010c1a1597bb7524acdb"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__poverty_rate.parquet",
+      "sha256": "dc1cbb965bae5316ee148e147e04cc5783b41e65b3aa3bcd3668035ec123cddd",
+      "metadata_sha256": "ec05657dcf5553c51b78ab27cc1deb73f00ebacef43ff5fe841c039cbaf2f809"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__poverty_rate.spatial.json",
+      "sha256": "522afb35fd40ce33d0920190ff54be1e7eda42409f7d88691f34befbb79f2630",
+      "prediction_sha256": "190c0ded0515198eac430ad89e7847e8e489a021cce41767eda54ef4fb971c40"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__poverty_rate.parquet",
+      "sha256": "2879ba86921a76a68434bfafec9d4e7575c4d4084e879e0a228eefc910c3430e",
+      "metadata_sha256": "a00f5a207909104c66090fdfbe4aa06ef0d25bed6f1af9f50d38528048c74dd2"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__poverty_rate.spatial.json",
+      "sha256": "a9d556c933f4d5fd10be5e41d60b0569a0c09cfd05e97d1b902d24cf8879716f",
+      "prediction_sha256": "895f96ef9146c1a73041626884b8ff26872236b9805e1fb6bf7a3e9d404710df"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__poverty_rate.parquet",
+      "sha256": "37cfe845123221b4447b85d903ff7ab7bfb3f3fda6f02d55570b48d962f7311d",
+      "metadata_sha256": "477b9c165df905c18c557ecccf2aa7cdd5ec735feab38af291c0216ae1463ecd"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__poverty_rate.spatial.json",
+      "sha256": "5e4987d4907f1bc3ec23155e60d4d2146d535097e91f820b837bb72e0d587d69",
+      "prediction_sha256": "c682d38c8fcbbceab9c78cafebe01526ddead7c9e08110a2a8bb4f4ce2b6580a"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__poverty_rate.parquet",
+      "sha256": "7096f3ea8a9011cf1f647aadd22acc9481a387fb328b4f3f03e3da56aacc0e8a",
+      "metadata_sha256": "8bbc7f336b03baed0ea1efe5412a7d97bf84a3d26352b4c8d7ee572047ff9487"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__poverty_rate.spatial.json",
+      "sha256": "dfc9a871266916cb251bdea7e2b5507c216a43c9977e77276e5e5f561f95d8c9",
+      "prediction_sha256": "94e309e8ca270b157878d1d1edc7fb2ed3cd745eb9467cbc1b63ec874521d109"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__unemployment_rate.parquet",
+      "sha256": "6bf7dc0e54d8d9998bb64475c984aa0545a6ea984e496bad601b380aeb457656",
+      "metadata_sha256": "743cec73ad77b17e54a93ce5173578dbaa2a63680a2bff24d795d0ee8124c5b8"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__unemployment_rate.spatial.json",
+      "sha256": "a87c9395e62dfee31a6d3f14c5fd62d2cf4a2b4d7c3d2b74e0b28e1e3fc59a88",
+      "prediction_sha256": "62282c19bda50e7a8b603dbb60c1dc4a0036bf15d3f6733c82bd38e519fd725a"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__unemployment_rate.parquet",
+      "sha256": "1c37cb88f28122e759d9d51d1f01d5e0ea41cf1ed71303df03971427d2cf6b57",
+      "metadata_sha256": "3f464d86c5cb09cfada9dfe19489fe82e87b13f89ef42455a69d0b55db08ad72"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__unemployment_rate.spatial.json",
+      "sha256": "fa0fde263493364023f5e09c78fb2f395454b91e2d23ed748595df3bff4328d6",
+      "prediction_sha256": "9bcb62cd71f27eb7f2025e258fc7d7d49ce9405ddf2f7e5daa724a95d8d80229"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__unemployment_rate.parquet",
+      "sha256": "ef0baa6e4879450d9b19812786bcd7d0aabb91cdeff093aa7452a9658edeb8b8",
+      "metadata_sha256": "f8c39d5fed62b04dbc7f0b7d74ed6867f7d2e9c7a1ec39038b8536f7b77c5b9a"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__unemployment_rate.spatial.json",
+      "sha256": "6dad99351e5282d6bfa4adbf98f2bc98f587f013021ba2bc7175b522f507840b",
+      "prediction_sha256": "d41b8fd00b4ed7705cc82416863f1cd0440b0df78ef240c8966edbb0a49c59bf"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__unemployment_rate.parquet",
+      "sha256": "b223adfd8eb0f6dc5cb1b207484600a82ca4d012765554efaa6dd99b62617c54",
+      "metadata_sha256": "dd52bdaa9947e43c380a608624c73d0c7b0e68f202ab10752d77ade806f45371"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__unemployment_rate.spatial.json",
+      "sha256": "9a958408ff0ddac19978b679091620e4d3b4c6aefde68d607baa3bd9c173261d",
+      "prediction_sha256": "87ceee6fc3b71bf0bc2119f3bb3eb7cb8dfc45327f14eb359ebe9946cef4dba1"
+    },
+    {
+      "path": "outputs/preds/chicago__ridge__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "c7f358ad96364dae38f92197e61ebb0a37a5fd9ce377a0fee84376b2ab8fb561",
+      "metadata_sha256": "6255bfadaa79afc8d2f09999608183a1d927b293e71ad870476b9583a18fd9ba"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__ridge__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "b80bad440b0ad8d11c8aab6555e9bb49bad7a753f5aa5bb1601cc3229dab172f",
+      "prediction_sha256": "8f93274fe935a04d8b8a60e315c77afb38943130df44b0af0058696fc2493105"
+    },
+    {
+      "path": "outputs/preds/chicago__extra_trees__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "9d83fa945c064c1f510d786ff5209f1b755d3cae2c4be459376bc1839b6b46f3",
+      "metadata_sha256": "3e8d9d7cf2e692dc7faf26284ef756fb3576969d20fbd8d10751e3ef5ba789ff"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__extra_trees__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "779633140c8c0805a4250bbeff7d35805239221e6591b8172cd9336028f4656f",
+      "prediction_sha256": "34541f299f996261a88b28f930a06bb9feb5c2ed533697eed4cb52ab32e30a49"
+    },
+    {
+      "path": "outputs/preds/chicago__hist_gb__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "c09108eb5dd3841d754ca20630d10b0d63f2ed7a429a8df36ac0c7c59d7174bd",
+      "metadata_sha256": "0ddb237f23bc1bdd142ebf4fd25300adbad734e7b345034598978bc162c29e41"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__hist_gb__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "dc4c98ae4ea8fc2846a7ece3304f72ad9ffcb43127e07d3a9420f60e5b42a924",
+      "prediction_sha256": "25cf175c4881eddfcbe8755df66c46d2ecb8c8309e8d3add7b2c216bdca3f92f"
+    },
+    {
+      "path": "outputs/preds/chicago__xgboost__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "89a7835a4bebcf3c4fa5d421662859b5934fdb4f3c4e90a7ea21fc035bc50a5d",
+      "metadata_sha256": "989fcca4e07dfdfd6cec9d7cb59d798c3c331e445c91871b4ccb6037f25b1bf7"
+    },
+    {
+      "path": "outputs/spatial_validation/chicago__xgboost__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "6a5b8a568930eb98fdc68cedd6c6e387da4c0a22cf523ec1c8d94fde8e9a3b90",
+      "prediction_sha256": "3aabb4c37f10e2b8fd994620e1652b0530ee407c017c8a89ccc5ea5923864335"
+    },
+    {
+      "path": "data/processed/san_francisco_dataset.parquet",
+      "sha256": "83badea68fedf139178625f5e891bae94c6cbd46d92bd476ec6dbffedfaac631"
+    },
+    {
+      "path": "data/processed/san_francisco_dataset.source.json",
+      "sha256": "9e922dd23bacdedf911515cafe395eb52679cfcbb7045211a2447555dff87609"
+    },
+    {
+      "path": "data/raw/census/san_francisco_tracts_2021.gpkg",
+      "sha256": "99e296cee9f407127cbb084de6e9745fffe440c20e3595f57e8313133c98f688"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__median_income.parquet",
+      "sha256": "afd167309b1b9ab8c711f96e8f5fdb65a4fc1cc8b9b918df059316d1ef1876b2",
+      "metadata_sha256": "b289e45cbd1b286d96a5542156147e74b22c48a2bf0de92bcb1cadbc965174c8"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__median_income.spatial.json",
+      "sha256": "94e8f3c0b6ec287ba336d9973fd8109ddfd84183e551743577ecd38e69518940",
+      "prediction_sha256": "3207403580c5fa4440e23335b4d3aafb3dbb53c5f5efa4fe6ca2faaca82f1865"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__median_income.parquet",
+      "sha256": "9ab50c1ac442f4657a963215e0af97db53e549d93d93a0c82be45c10ae4c680f",
+      "metadata_sha256": "7b34a80a7c6c35ee76716466c5cffa29d5971e62debda259587e79fa6b4ffb2c"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__median_income.spatial.json",
+      "sha256": "70435c726923481984bb60f0a27eb23c95be515eecd44486bf5bf72d85ba7e30",
+      "prediction_sha256": "5cc99d9fd5ea59f7b2eeed6bb8c528ecdeb7ddd2eebf2c33302de58966deed11"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__median_income.parquet",
+      "sha256": "20001b5786e8a70447bfdb25fbf9e9b61df5539d26b2af8c157b5d923d420ade",
+      "metadata_sha256": "f2229488ed8b07fd387058f51e0e4d4f5a836aa6d07711d9a6806f7698b3d568"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__median_income.spatial.json",
+      "sha256": "dc813427d3e809777f3422df783da13085f77089ae4d8efa0c11f9c9293a98dc",
+      "prediction_sha256": "4cdf7655b68b008f0fd28615d1a99a9e3f5ac2ea247331be1a6e5db178a6c159"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__median_income.parquet",
+      "sha256": "810c50133ea56cbd85c8dfdb3907ffd6e067d93813760edcd66c4b806cd4a53d",
+      "metadata_sha256": "057fabe91cd28586d38da590c6555f058f7a102d8489640fdefe3009752db6e6"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__median_income.spatial.json",
+      "sha256": "b9a719eb7dafce772d35fcb725452a5037e4a6b127504c2467fdb694f598b7ac",
+      "prediction_sha256": "2e35b3a244772abb3b446553311849c5f73b7b2d6a694608fdc0fc3b5f312e73"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__median_rent.parquet",
+      "sha256": "073efdc635254972a8d04a4618e54ce471383406e850be4b944a11de8f0381f2",
+      "metadata_sha256": "2fec26d0012343c63cf99f487feb22cf75623a96e35b4e207a95281e8dcbfcd5"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__median_rent.spatial.json",
+      "sha256": "d0178b4da51ba978264956d07f9498c50821aafbc3fa3c657d74f69a2577f2a3",
+      "prediction_sha256": "2421d5381cd58cca330afbff336f32072a4f742f6b22c8c102c504d3c1bdd04c"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__median_rent.parquet",
+      "sha256": "c8ce33c8e47f78be73e84cb7dd4f43a3316a86c19adac57f758d739752fdc886",
+      "metadata_sha256": "4cd091abbff92c75bec14e84498d8f054ae82f211ce2f89885eede64fd04086f"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__median_rent.spatial.json",
+      "sha256": "3c08aab969aeef2059a672fe7a5193571d4cee555f24573c07d7fab2240e9c35",
+      "prediction_sha256": "a6a8107b909ee6fef3ec126687843f5eb5b8fe13a38d42ddfdf79f5a89e73f13"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__median_rent.parquet",
+      "sha256": "e50479323e0dd2902b00112bd3834a5651287bfbe8cf9e5926bbdcd20447cf93",
+      "metadata_sha256": "6b9021f6f138e4ca61e5bba3902c9bd7935140eff0644d5767e93af01c291acd"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__median_rent.spatial.json",
+      "sha256": "046ef55565001379292bd61bcb42f59cb6aa32d7c21cf7a99092f0545565bbf7",
+      "prediction_sha256": "1c03ff73635c093e075932bb3c13ddd3a8c1d8298ad2f907455468b6169044ba"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__median_rent.parquet",
+      "sha256": "0fe42e6fb126343056615dd40308c52a0c8f9cbb08a6f0e422f37dc931df892e",
+      "metadata_sha256": "b2bf2634b93f6f756bb18ab7f6980f5dde6abdfa673c5a97c3d89f7bb629de9c"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__median_rent.spatial.json",
+      "sha256": "7495e09dff42b23ac191d6172ce745daee8c4f1e9c2514b8e3ddb9dc22ffdb9f",
+      "prediction_sha256": "c94f0ea2e0e5658ec9df42931f78dddc2b5925792c933a30730f415fdb622a67"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__median_home_value.parquet",
+      "sha256": "34e64ed36fa3dd0019f98389dc667712a3f77db7f3ae950d0bb96a0099767db4",
+      "metadata_sha256": "28ed2a69ea985f0ee7f55ff906aefc28ae35f4f8b0bd26cd264a7fa6034d55a9"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__median_home_value.spatial.json",
+      "sha256": "27b79ae0470ba95c21da2cc47526b335560348a66ad31b3e84794024ea3289a9",
+      "prediction_sha256": "20cdc84b2198b2bd5a93366c571df34fe6bf78a05b7ebbd6ea74712b52b23103"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__median_home_value.parquet",
+      "sha256": "a11b814ebbd4627d94670ae2937d650a75163097cd1fa571118c51fb9391010f",
+      "metadata_sha256": "ea4a6a8b2ebb63dc6b618585819477b1144654031d215bbd8fc0b376adccb0b1"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__median_home_value.spatial.json",
+      "sha256": "f3ffec7b91220560f3dc112a4c359ad0879a5721f713f70147cca83faa123db0",
+      "prediction_sha256": "7049824c7a2d252459e15f0099c09b72ea8d1c0bf03e91807217b4a51da7dad8"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__median_home_value.parquet",
+      "sha256": "56f073eb4f6caec6423dc4cc886276fdc97d38be8f8d0e0eae103a71d96dbcf7",
+      "metadata_sha256": "91f15cc47b745b5ef0a7544c2a69756eab0551b90a17c674af144498f77b5264"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__median_home_value.spatial.json",
+      "sha256": "68a70f62299923da270bf5e8d906d398b4245b6ab5a8cbecb1994d0b07139a86",
+      "prediction_sha256": "ac32c84591f4f1d2e4424616826683113147a44e50828a5b2458401ebb765f71"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__median_home_value.parquet",
+      "sha256": "9b5ad5aafd630b2493dfc4102270047aa4a747b99f472a1d99a5002460c198a9",
+      "metadata_sha256": "fa120b33194261f33b28e218bb8f8727118c93766fb5454c231e9540185a5e3c"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__median_home_value.spatial.json",
+      "sha256": "a3721ea7cbda476216fcd380fa8a28b96c23b10507a25521409174d57689df4b",
+      "prediction_sha256": "0feaa17013b3f61cd4d14a99461749d784baaf75e214c6fa13332ea89a926787"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__poverty_rate.parquet",
+      "sha256": "103ae77d716693a4fb1292f36ebb8c2e7a4de71f21d86c96d1b994d10eb5e0b4",
+      "metadata_sha256": "f09b4db6e9d7ffe807bc58ec7efbfe70ff1e38d19072ef573e8bf1d549fc9508"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__poverty_rate.spatial.json",
+      "sha256": "bc3c390cbe01fa66b83c947f949cfac300a9b5e734fa9163cba4c72cbf8212fd",
+      "prediction_sha256": "227dbf027d9b182208ffc256742111b1edb46945589df97949d127a2c2e0a709"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__poverty_rate.parquet",
+      "sha256": "101e0ae015cb45bc858bbd92c40896f64aa2936fff7e32392d6efbcf6e73a91d",
+      "metadata_sha256": "5ba4d78bb66414932d96b0bc07186c54b4409a49aa9ba183beb2b5292beedd97"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__poverty_rate.spatial.json",
+      "sha256": "e0a4b3e4f84da72e06e0323d0b50d6c3eb7cd3f57e76fe2db7e474ab94fcb39c",
+      "prediction_sha256": "4418bbc2556699f8c7c2934e93a46118000fea2e1a827690a00cf4e9d8bcc0c7"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__poverty_rate.parquet",
+      "sha256": "785afc007c31765587a53a2499df30dc3bc6928828c4eefdc65c76af42ac66d2",
+      "metadata_sha256": "16d459d45985428f4922efb5884daaa4a3d85b0bfea4c720f40fd3306ecd9ed3"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__poverty_rate.spatial.json",
+      "sha256": "92d0a0c6bee7e7c5da39661057772d161340356dcf6187a80740173bc0f0c88f",
+      "prediction_sha256": "3ce9ceabb2d2b6d1c54c19ac59ad3480bf0225569c7620d05d9cf943a9349e27"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__poverty_rate.parquet",
+      "sha256": "91132123ab6e86da45e9203dcdccf066f6fef349d8e763759a03cadbec7d4565",
+      "metadata_sha256": "18de59435eb6620ebc34701e2e67552d22d3e230f9fca6b192bc82f5a25c005b"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__poverty_rate.spatial.json",
+      "sha256": "dbd7671db57c45d2c8920db05e96ccecc974085af487113684fbf72cf4a2bad2",
+      "prediction_sha256": "f0a8f8268a37d4f3d65caa3196ce8710449069ebea1154e58121103ea39f9b19"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__unemployment_rate.parquet",
+      "sha256": "e54d2caabe85a4156480ca3ed64a8bb6cfea6fcd9ff4a3c9dd2b0c4f63e1e014",
+      "metadata_sha256": "7fa311b0138966decbbae4e03ca5118804d33ebf7f35f1b6b567a70aef15bef3"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__unemployment_rate.spatial.json",
+      "sha256": "5b9fdd082c93e4c0e89dfcfc2870e1116e5224672850a3090e91b849aa0caa17",
+      "prediction_sha256": "99d64c2dac1a01cd2743976ee619d7c60ae3aa1494809a88f16e192fd12f42fb"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__unemployment_rate.parquet",
+      "sha256": "9c7440d994dd30a8d5fdc0973259a1223e0c6c1898fc61f9a8813dbb13dc2396",
+      "metadata_sha256": "1a063537f5869f5731a47282472f2b77cef0549d41a50f3cb741e162c0fc0ff3"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__unemployment_rate.spatial.json",
+      "sha256": "a598b8202f891b6195835eff3a0ac67078e922571fa2192edb865117006e69ee",
+      "prediction_sha256": "3f8190c3e494b7917d9603f97e5a8aa603d71c92be964ecdf93fdcbfa9c9dccc"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__unemployment_rate.parquet",
+      "sha256": "4e7bab9ce949f8e77bf15d4a7ebb7fd3b8f381d4fd075c25828ae50e7f2245b7",
+      "metadata_sha256": "1f3b18c6e2688e1d566d378a4ae2876c58236219f893470f8a956b2264f5f5c5"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__unemployment_rate.spatial.json",
+      "sha256": "97e2dc0765ff9c980bfccdc97df6f9e853f5e9de910f164673b73073ebcf976d",
+      "prediction_sha256": "3d480bee32230c14931ba3b7086d12d61caa64a3f6cff70f8f04703d892bca9b"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__unemployment_rate.parquet",
+      "sha256": "aa1ecc1bd797fa98cc5758b6a90e1b206c1fa15e06b757a1f1624e71002288a1",
+      "metadata_sha256": "3afcf991a79b1c084f237b59412fc2ba3762fcbf191ee4588ecb5c7be70db1ea"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__unemployment_rate.spatial.json",
+      "sha256": "045a03babf083fc7f63eed9d364ff5c271c0c62a2b09410993463e4d04b4404c",
+      "prediction_sha256": "79d98e998b8284fab764061891f87070a9bdd8f70b1e379a7b041f4bdd783857"
+    },
+    {
+      "path": "outputs/preds/san_francisco__ridge__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "d4e809cf0f4134f8374d9278350a4430973cebf4aadb2ebce9aee72f65caff80",
+      "metadata_sha256": "6c35d68d325043e034de023562f757b2d0ed29437643ea4b7d68976cc347a21a"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__ridge__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "74008d4769dfa0a99d9d98d446728f088cc4cbca152b1bc53c49160a85a3ca75",
+      "prediction_sha256": "dab181fe790f8a85d67075d6772d1196e0efb1d95fe0ec584dee3260b2b51d0b"
+    },
+    {
+      "path": "outputs/preds/san_francisco__extra_trees__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "3855bd163defa87461d8854742437e331024cd2f012b14cc9aaeae9adadd85c6",
+      "metadata_sha256": "4c9eccac2859ac8f1e7dc90e80b48a5f97b352365c40ef84c8468cb17c4afb0a"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__extra_trees__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "67025eb78d2ccc35468836f7293af65148c4bb6f83666ed5b15d1ff580bc12b1",
+      "prediction_sha256": "b056fc7da499601b92d3da28adabec44b122f4f9a92752c798381ba3a003b3c0"
+    },
+    {
+      "path": "outputs/preds/san_francisco__hist_gb__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "ccbc1b8bd4e7a242b944834ba35f294a67d680f92236a824a2b4f994a13eb2c3",
+      "metadata_sha256": "9831f2878aedf53730a0c6d3e923f5747359df8e91ad597443ba4394e1b76e50"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__hist_gb__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "a7451308dc2a12f03218a6937abfc930631610bcccd6e3f285404fc6cde3c0b7",
+      "prediction_sha256": "4fa4f86f09e5d554c2ac70cfcade0690fef13ada78085b6ac32f7bbf4cdf2991"
+    },
+    {
+      "path": "outputs/preds/san_francisco__xgboost__osm_only__bachelors_plus_rate.parquet",
+      "sha256": "2dda9bda3cbaa76e1a8162c5826364df7142b8174864f20ef77223f716fd8e1f",
+      "metadata_sha256": "248dd8f697691ceb668a9a39556af14fee6bc8f27447a0ad3de9f5efcbd2d712"
+    },
+    {
+      "path": "outputs/spatial_validation/san_francisco__xgboost__osm_only__bachelors_plus_rate.spatial.json",
+      "sha256": "c52f1c4abdf734a6523c14866ed831b47ed36b22d91d5e866da997546b9a7e00",
+      "prediction_sha256": "f943d41ef54d8c8a510dd6d9d492f72d9c67a7e3e02dc1d3f71f82b0f98d386e"
+    }
+  ],
+  "figures": {
+    "data-coverage.png": "4f44eacae7e8fcb45ecf9685521d2cacf009aa3334a1125d6fb42b47d2a79c64",
+    "education-residuals.png": "c60433ee3d381553a19563b03396aa78feccb7d7066a064ea7b4908ec7acac3f",
+    "home-value-residuals.png": "df838e62cd75aed1f88de89d768afb07df40c2705d4bca762df371dde578615c",
+    "income-models.png": "8a7f0b1b500619cd913287dd2dfe6df5a519aeb5f0bfc134ce9b40f2f3e1e7ee",
+    "income-residuals.png": "4f66714d879420cbedd61a223eaff41a5e366b4a9f97804fc8cdcabc76bbb16c",
+    "model-comparison.png": "b395a66a001e1bec1c474ba282c09e4e8e7214f7e87857857022af386a9c562e",
+    "poverty-residuals.png": "02f5c84386f51c7cfb3d6908e40a88157528e56f37227d6648087c3dce5fc078",
+    "rent-residuals.png": "f6e51416850c6fc62f40f6ebffb99fde074be87b52525595d8c3452029a295d2",
+    "unemployment-residuals.png": "2107ecae041b45f7e8ff65031f188dbd1d5ccb416dd440e31b9b2de807c5259d",
+    "validation-comparison.png": "c3a3ca34419c7683e6f29bd95027d086c64227042219a61cb9912759da24fd5d"
+  }
+}
